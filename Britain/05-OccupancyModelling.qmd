@@ -1,0 +1,519 @@
+---
+title: "05: Britain Occupancy Modelling"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 7
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+---
+
+Load in relevant packages, functions and datasets:
+
+```{r}
+library(tidyverse)
+library(sf)
+library(auk)
+library(unmarked)
+library(terra)
+library(exactextractr)
+library(geodata)
+library(arrow)
+library(ggpubr)
+library(DT)
+library(plotly)
+
+source("CustomFunctions.R")
+
+# Produce shapefile boundary for Britain
+# https://osdatahub.os.uk/downloads/open/BoundaryLine
+Britain_sf <- read_sf("Data/Provided/bdline_gb.gpkg", layer = "country_region") %>%
+  st_union() %>%
+  st_transform(crs = 4326)
+
+# Simplify Britain boundary for faster plotting etc.
+Britain_simple <- Britain_sf %>% 
+  st_simplify(dTolerance = 100)
+
+# UTM OS Grid CRS
+utm_crs <- st_crs("+proj=utm +datum=WGS84 +zone=30 +units=m +no_defs") 
+
+# Load pre-downloaded MODIS data
+habitat <- open_dataset("Data/Provided/srd_3km_year.parquet", 
+                        format = "parquet") %>%
+  select(latitude, longitude,
+         starts_with("mcd12q1_lccs2_") & ends_with("pland"),
+         elevation_30m_median, elevation_30m_sd,
+         has_shoreline) %>%
+  filter(latitude > 50 & latitude < 61,
+         longitude > -8 & longitude < 2) %>%
+  collect() %>%
+  data.frame()
+
+habitat_names <- c("mcd12q1_lccs2_c1_pland" = "Barren",
+                   "mcd12q1_lccs2_c2_pland" = "Permanent Snow and Ice",
+                   "mcd12q1_lccs2_c3_pland" = "Water Bodies",
+                   "mcd12q1_lccs2_c9_pland" = "Urban", 
+                   "mcd12q1_lccs2_c10_pland" = "Dense Forests",
+                   "mcd12q1_lccs2_c20_pland" = "Open Forests",
+                   "mcd12q1_lccs2_c25_pland" = "Forest/Cropland Mosaics",
+                   "mcd12q1_lccs2_c30_pland" = "Natural Herbaceous",
+                   "mcd12q1_lccs2_c35_pland" = "Herbaceous/Croplands Mosaic", 
+                   "mcd12q1_lccs2_c36_pland" = "Herbaceous Cropland",
+                   "mcd12q1_lccs2_c40_pland" = "Shrublands", 
+                   "latitude" = "Latitude", 
+                   "longitude" = "Longitude",
+                   "elevation_30m_median" = "Elevation Average",
+                   "elevation_30m_sd" = "Elevation Variability",
+                   "has_shoreline" = "Coastline")
+
+# Load zero-filled eBird data, species list, and preference scores
+load("Data/EB_zf.RData")
+load("Data/breeding_common.RData")
+load("Data/EB_preference.RData")
+load("Data/BT_preference.RData")
+
+# Allow for skipping of dataset processing, model building, and plots (all slow)
+rebuild_datasets <- FALSE
+rebuild_models <- FALSE
+rebuild_plots <- FALSE
+
+# Set duration threshold (specified here as 10 minutes)
+duration_threshold <- 10
+
+sessionInfo()
+```
+
+Environmental data processing:
+
+```{r}
+# Make a 3km grid over the UK
+Britain_grid <- Britain_simple %>% 
+  st_transform(utm_crs) %>% 
+  st_make_grid(cellsize = 3000) %>% 
+  st_as_sf() %>% 
+  rowid_to_column(var = "cell_id") %>% 
+  filter(as.logical(st_intersects(
+    ., st_transform(Britain_simple, utm_crs))) == TRUE)
+
+# Attach environmental data to grid
+habitat_sf <- habitat %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(crs = utm_crs)
+
+habitat_grid <- Britain_grid %>% 
+  st_join(habitat_sf, join = st_nearest_feature, left = TRUE)
+
+# Create a latitude / longitude / cell_id reference for the grid system
+grid_reference <- habitat_grid %>% 
+  st_centroid() %>% 
+  st_transform(4326) %>%
+  mutate(longitude = st_coordinates(.)[, 1],
+         latitude = st_coordinates(.)[, 2]) %>% 
+  st_drop_geometry() %>%
+  select(cell_id, longitude, latitude)
+
+# Identify which habitats actually have reasonable coverage across the UK
+# Threshold of >1% of cells with non-zero values
+valid_habitats <- habitat_grid %>% 
+  st_drop_geometry() %>% 
+  pivot_longer(cols = contains("mcd12q1"), names_to = "habitat", values_to = "value") %>% 
+  group_by(habitat) %>% 
+  summarise(non_zero = mean(value != 0)) %>% 
+  filter(non_zero > 0.01) %>% 
+  pull(habitat)
+
+paste("Valid habitat classes:", 
+      paste(str_extract(valid_habitats, "c\\d+"), collapse = ", "))
+
+habitat_grid <- habitat_grid %>% 
+  left_join(grid_reference, by = "cell_id") %>%
+  # Remove invalid habitat columns
+  select(cell_id, latitude, longitude, all_of(valid_habitats), 
+         elevation_30m_median, elevation_30m_sd, has_shoreline) %>% 
+  # Scale habitat, elevation and latitude / longitude columns
+  mutate(across(
+    .cols = matches("^latitude|longitude|elevation"), 
+    .fns = ~ as.numeric(scale(.)))) %>% 
+  rowwise() %>%
+  mutate(across(starts_with("mcd12q1"), ~ . / sum(
+    c_across(starts_with("mcd12q1")), na.rm = TRUE))) %>%
+  ungroup()
+
+grid_reference <- habitat_grid %>% 
+  select(cell_id, x)
+
+Britain_outline <- Britain_simple %>% 
+  st_transform(crs = utm_crs) %>% 
+  st_cast("MULTILINESTRING")
+```
+
+eBird data processing:
+
+```{r}
+EB_checklists <- read_sampling("Data/ebd_sampling_relDec-2024_GBR.txt",
+                               unique = FALSE) %>% 
+  select(checklist_id = sampling_event_identifier, 
+         effort_distance_km, number_observers)
+
+EB_zf <- EB_zf %>% 
+  filter(scientific_name %in% breeding_common) %>% 
+  left_join(., EB_checklists, by = "checklist_id") %>%
+  # Filter to only breeding season (May - Aug) %>% 
+  mutate(month = month(ymd(observation_date)),
+         yday = yday(ymd(observation_date))) %>%
+  filter(month %in% 5:8) %>% 
+  # Convert to an sf object
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(crs = utm_crs) %>%
+  # Add environmental data
+  st_join(habitat_grid, left = TRUE, join = st_nearest_feature) %>%
+  st_drop_geometry()
+```
+
+Create model datasets:
+
+```{r}
+if (rebuild_datasets == TRUE) {
+  occupancy_datasets <- list()
+  
+  for (i in 1:length(breeding_common)) {
+    # Full dataset for occupancy modelling
+    occupancy_datasets[[i]] <- EB_zf %>%
+      filter(scientific_name == breeding_common[i]) %>% 
+      select(cell_id, yday, species_observed, checklist_id, 
+             all_of(valid_habitats), latitude, longitude, 
+             elevation_30m_median, elevation_30m_sd, has_shoreline,
+             duration_minutes, effort_distance_km) %>% 
+      drop_na() %>% 
+      group_by(cell_id) %>% 
+      # Keep at most 10 checklists per grid cell
+      slice_sample(n = 10, replace = FALSE) %>% 
+      ungroup() %>% 
+      {suppressWarnings(formatLong(., type = "unmarkedFrameOccu"))}
+    
+    # Short (less than crossover duration) only dataset for occupancy modelling
+    occupancy_datasets[[i+length(breeding_common)]] <- EB_zf %>%
+      filter(scientific_name == breeding_common[i],
+             duration_minutes < duration_threshold) %>% 
+      select(cell_id, yday, species_observed, checklist_id, 
+             all_of(valid_habitats), latitude, longitude, 
+             elevation_30m_median, elevation_30m_sd, has_shoreline,
+             duration_minutes, effort_distance_km) %>% 
+      drop_na() %>% 
+      group_by(cell_id) %>% 
+      # Keep at most 10 checklists per grid cell
+      slice_sample(n = 10, replace = FALSE) %>% 
+      ungroup() %>% 
+      {suppressWarnings(formatLong(., type = "unmarkedFrameOccu"))}
+    
+    # Long (greater than crossover duration) only dataset for occupancy modelling
+    occupancy_datasets[[i+2*length(breeding_common)]] <- EB_zf %>%
+      filter(scientific_name == breeding_common[i],
+             duration_minutes >= duration_threshold) %>% 
+      select(cell_id, yday, species_observed, checklist_id, 
+             all_of(valid_habitats), latitude, longitude, 
+             elevation_30m_median, elevation_30m_sd, has_shoreline,
+             duration_minutes, effort_distance_km) %>% 
+      drop_na() %>% 
+      group_by(cell_id) %>% 
+      # Keep at most 10 checklists per grid cell
+      slice_sample(n = 10, replace = FALSE) %>% 
+      ungroup() %>% 
+      {suppressWarnings(formatLong(., type = "unmarkedFrameOccu"))}
+  }
+  
+  names(occupancy_datasets) <- paste(rep(breeding_common, 3), 
+                                     rep(c("Full", "Short", "Long"), 
+                                         each = length(breeding_common)))
+  
+  save(occupancy_datasets, file = "Data/EB_occupancy_datasets.RData")
+} else {
+  load("Data/EB_occupancy_datasets.RData")
+}
+```
+
+Get summary metrics for model datasets:
+
+```{r}
+model_metrics <- c("No. Sites", "Max Obs/Site", "Mean Obs/Site",
+                   "No. Sites 1+ Det", "No. 0s", "No. 1s", "No. NAs", "% 1s")
+occupancy_model_info <- matrix(nrow = length(occupancy_datasets), 
+                               ncol = length(model_metrics))
+
+for (i in 1:length(occupancy_datasets)) {
+  dat <- occupancy_datasets[[i]]
+  tab <- as.data.frame(table(dat@y, exclude = NULL))
+  
+  temp <- c(
+    nrow(dat@y), 
+    obsNum(dat), 
+    round(mean(rowSums(!is.na(getY(dat)))), 2),
+    sum(apply(getY(dat), 1, function(x) any(x > 0, na.rm = TRUE))),
+    tab$Freq[1], 
+    tab$Freq[2], 
+    tab$Freq[3],
+    (tab$Freq[2] / (tab$Freq[1] + tab$Freq[2])) * 100
+  )
+  
+  occupancy_model_info[i, ] <- temp
+}
+rm(dat, tab, temp, i)
+
+occupancy_model_info <- as.data.frame(occupancy_model_info, 
+                                      row.names = names(occupancy_datasets))
+colnames(occupancy_model_info) <- model_metrics
+
+occupancy_model_info %>% 
+  rownames_to_column(var = "Model") %>% 
+  mutate(Species = word(Model, 1, 2),
+         Model = word(Model, 3, 3)) %>% 
+  select(Species, Model, model_metrics) %>% 
+  mutate(across(is.numeric, round, digits = 2)) %>% 
+  datatable(caption = "Occupancy Models", rownames = FALSE)
+```
+
+Model fitting:
+
+```{r}
+detection_covariates <- c(1) # intercept-only detection model
+occupancy_covariates <- c("latitude", "longitude", valid_habitats,
+                          "elevation_30m_median", "elevation_30m_sd",
+                          "has_shoreline")
+
+occupancy_formula <- as.formula(
+  paste("~", paste(detection_covariates, collapse = " + "),
+        "~", paste(occupancy_covariates, collapse = " + ")))
+
+if (rebuild_models == TRUE) {
+  occupancy_models <- list()
+  
+  for (i in 1:length(occupancy_datasets)) {
+    occupancy_models[[i]] <- occu(occupancy_formula, 
+                                  data = occupancy_datasets[[i]])
+  }
+  
+  names(occupancy_models) <- names(occupancy_datasets)
+  
+  save(occupancy_models, file = "Data/EB_occupancy_models.RData")
+} else {
+  load("Data/EB_occupancy_models.RData")
+}
+```
+
+Spatial Plots:
+
+```{r}
+prediction_grid <- habitat_grid %>%
+  st_drop_geometry()
+
+if (rebuild_plots == TRUE) {
+  
+  occupancy_grids <- list()
+  
+  for (i in 1:length(occupancy_models)) {
+    occupancy_grids[[i]] <- predict(occupancy_models[[i]], type = "state", 
+                                    newdata = prediction_grid, 
+                                    appendData = TRUE) %>%
+      select(cell_id, predicted = Predicted) %>% 
+      left_join(habitat_grid, ., by = "cell_id") %>% 
+      mutate(model = names(occupancy_models)[i],
+             scientific_name = factor(word(model, 1, 2)),
+             model = factor(word(model, 3, 3), 
+                            levels = c("Full", "Short", "Long")))
+  }
+  
+  occupancy_grids <- bind_rows(occupancy_grids) %>% 
+    st_centroid() %>% 
+    mutate(x_coord = st_coordinates(.)[, 1], 
+           y_coord = st_coordinates(.)[, 2]) %>% 
+    st_drop_geometry()
+  
+  occupancy_plots <- list()
+  
+  for (i in 1:length(breeding_common)) {
+    occupancy_plots[[i]] <- occupancy_grids %>% 
+      filter(scientific_name == breeding_common[i]) %>% 
+      ggplot() +
+      geom_tile(aes(x = x_coord, y = y_coord, fill = predicted)) + 
+      geom_sf(data = Britain_outline) +
+      scale_fill_viridis_c(limits = c(0, 1), option = "mako") + 
+      theme_bw() + 
+      labs(fill = "Estimated Occupancy Probability", title = breeding_common[i]) +
+      theme(legend.position = "right", axis.text = element_blank(),
+            axis.ticks = element_blank(), axis.title = element_blank(),
+            panel.grid = element_blank()) +
+      facet_wrap(~ model, ncol = 3, nrow = 1)
+  }
+  
+  save(occupancy_grids, file = "Data/EB_occupancy_grids.RData")
+  save(occupancy_plots, file = "Data/EB_occupancy_plots.RData")
+} else {
+  load("Data/EB_occupancy_grids.RData")
+  load("Data/EB_occupancy_plots.RData")
+}
+```
+
+```{r}
+occupancy_differences_linear <- occupancy_grids %>% 
+  select(cell_id, x_coord, y_coord, model, scientific_name, predicted) %>% 
+  group_by(cell_id, scientific_name) %>% 
+  pivot_wider(names_from = model, values_from = predicted) %>% 
+  ungroup() %>% 
+  mutate(`Full-Short` = `Full` - `Short`,
+         `Full-Long` = `Full` - `Long`) %>% 
+  select(-c("Full", "Short", "Long")) %>% 
+  pivot_longer(cols = c(5, 6), names_to = "comparison", values_to = "difference")
+
+occupancy_differences_logit <- occupancy_grids %>% 
+  select(cell_id, x_coord, y_coord, model, scientific_name, predicted) %>% 
+  mutate(predicted = qlogis(predicted)) %>% 
+  group_by(cell_id, scientific_name) %>% 
+  pivot_wider(names_from = model, values_from = predicted) %>% 
+  ungroup() %>% 
+  mutate(`Full-Short` = `Full` - `Short`,
+         `Full-Long` = `Full` - `Long`) %>% 
+  select(-c("Full", "Short", "Long")) %>% 
+  pivot_longer(cols = c(5, 6), names_to = "comparison", values_to = "difference")
+
+if (rebuild_plots == TRUE) {
+  occupancy_diffplots_linear <- list()
+  encounter_diffplots_linear <- list()
+  occupancy_diffplots_logit <- list()
+  encounter_diffplots_logit <- list()
+  
+  for (i in 1:length(breeding_common)) {
+    occupancy_diffplots_linear[[i]] <- occupancy_differences_linear %>% 
+      filter(scientific_name == breeding_common[i]) %>% 
+      ggplot() +
+      geom_tile(aes(x = x_coord, y = y_coord, fill = difference)) + 
+      geom_sf(data = Britain_outline) +
+      scale_fill_gradient2(low = "red", mid = "white", high = "blue", 
+                           limits = c(-1, 1)) + 
+      theme_bw() + 
+      labs(fill = "Difference (Linear)", title = breeding_common[i]) +
+      theme(legend.position = "right", axis.text = element_blank(),
+            axis.ticks = element_blank(), axis.title = element_blank(),
+            panel.grid = element_blank()) +
+      facet_wrap(~ comparison, ncol = 2, nrow = 1)
+    
+    occupancy_diffplots_logit[[i]] <- occupancy_differences_logit %>% 
+      filter(scientific_name == breeding_common[i]) %>% 
+      ggplot() +
+      geom_tile(aes(x = x_coord, y = y_coord, fill = difference)) + 
+      geom_sf(data = Britain_outline) +
+      scale_fill_gradient2(low = "red", mid = "white", high = "blue") + 
+      theme_bw() + 
+      labs(fill = "Difference (Logit)", title = breeding_common[i]) +
+      theme(legend.position = "right", axis.text = element_blank(),
+            axis.ticks = element_blank(), axis.title = element_blank(),
+            panel.grid = element_blank()) +
+      facet_wrap(~ comparison, ncol = 2, nrow = 1)
+  }
+  
+  save(occupancy_diffplots_linear, 
+       file = "Data/EB_occupancy_diffplots_linear.RData")
+  save(occupancy_diffplots_logit, 
+       file = "Data/EB_occupancy_diffplots_logit.RData")
+} else {
+  load("Data/EB_occupancy_diffplots_linear.RData")
+  load("Data/EB_occupancy_diffplots_logit.RData")
+}
+```
+
+```{r}
+occupancy_differences_linear_summary <- occupancy_differences_linear %>% 
+  group_by(comparison, scientific_name) %>% 
+  summarise(mean_difference = mean(difference),
+            mabs_difference = mean(abs(difference)),
+            rmse_difference = sqrt(mean(difference^2)))
+
+occupancy_differences_logit_summary <- occupancy_differences_logit %>% 
+  group_by(comparison, scientific_name) %>% 
+  summarise(mean_difference = mean(difference),
+            mabs_difference = mean(abs(difference)),
+            rmse_difference = sqrt(mean(difference^2)))
+```
+
+```{r}
+occupancy_differences_linear_stats <- occupancy_differences_linear_summary %>% 
+  filter(comparison == "Full-Long") %>% 
+  pull(mabs_difference)
+
+round(c(
+  summary(occupancy_differences_linear_stats), 
+  quantile(occupancy_differences_linear_stats, c(0.025, 0.975))), 3)
+```
+
+```{r}
+breeding_preference <- full_join(EB_preference, BT_preference, 
+                                 by = "scientific_name") %>% 
+  select(-contains("calculable")) %>% 
+  filter(scientific_name %in% breeding_common) 
+
+full_long_comparison <- occupancy_differences_linear_summary %>% 
+  filter(comparison == "Full-Long") %>% 
+  left_join(., breeding_preference, by = "scientific_name")
+
+lm(formula = mabs_difference ~ log10(EB_preference_est), 
+   data = full_long_comparison) %>%
+  summary()
+
+plot2 <- full_long_comparison %>% 
+  ggplot(aes(x = EB_preference_est, y = mabs_difference)) +
+  geom_smooth(method = "lm", colour = "black") +
+  geom_point() +
+  scale_x_log10(breaks = c(1/3, 1, 3), 
+                labels = c("1:3", "1:1", "3:1")) + 
+  theme_classic() +
+  labs(x = "eBird Preference Ratio", y = "Mean Absolute Difference")
+
+plot2
+ggsave(plot2, filename = "DifferencePlot.png", width = 9, height = 6)
+```
+
+```{r}
+detection_estimates <- c()
+
+for (i in 1:length(occupancy_models)) {
+  detection_estimates[i] <- quiet_output(summary(occupancy_models[[i]]))$det[[1]]
+}
+
+detection_estimates <- tibble(
+  model = names(occupancy_models),
+  detection_estimate_logit = detection_estimates,
+  detection_estimate_linear = plogis(detection_estimates)) %>% 
+  mutate(scientific_name = factor(word(model, 1, 2)),
+         model = factor(word(model, 3, 3), 
+                        levels = c("Full", "Short", "Long"))) %>% 
+  select(scientific_name, model, 
+         detection_estimate_logit, detection_estimate_linear)
+
+detection_estimates %>% 
+  mutate(across(is.numeric, round, digits = 3)) %>% 
+  rename("Species" = scientific_name, 
+         "Model" = model,
+         "Logit Detectability" = detection_estimate_logit,
+         "Linear Detectability" = detection_estimate_linear) %>% 
+  datatable(caption = "Estimated Detectability", rownames = FALSE)
+
+detection_differences_linear <- detection_estimates %>% 
+  select(scientific_name, model, detection_estimate_linear) %>% 
+  pivot_wider(names_from = model, values_from = detection_estimate_linear) %>% 
+  mutate(`Full-Short` = `Full` - `Short`,
+         `Full-Long` = `Full` - `Long`) %>% 
+  left_join(., breeding_preference, by = "scientific_name")
+
+ggplot(detection_differences_linear, aes(x = EB_preference_est, y = `Full-Long`)) +
+  geom_point() +
+  scale_x_log10() +
+  geom_smooth(method = "lm") +
+  theme_bw() +
+  labs(x = "eBird Preference Ratio", 
+       y = "Difference in Full vs Long Detectability")
+```

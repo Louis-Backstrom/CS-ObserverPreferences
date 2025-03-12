@@ -1,0 +1,569 @@
+---
+title: "02: Britain eBird Analysis"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 12
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+---
+
+Load in relevant packages, functions and datasets:
+
+```{r}
+library(tidyverse)
+library(gamlss)
+library(gamlss.add)
+library(tictoc)
+library(plotly)
+library(DT)
+library(auk)
+
+source("PermuteLists.R")
+source("CustomFunctions.R")
+source("FilePaths.R") # filepaths for (large) data files stored locally (file not provided to maintain double blind)
+
+load("Data/EB_zf.RData")
+
+load("Data/EB_taxonomy.RData")
+
+sessionInfo()
+```
+
+Set up parameters for the modelling algorithm:
+
+```{r}
+# How many times to run the whole algorithm
+bootstrap_iterations_total <- 1000
+# How many shuffles to produce a simulated dataset (10+ recommended)
+permutation_iterations <- 15
+# Overwrite previous versions if they are present?
+overwrite_iterations <- FALSE
+# Subsample (TRUE) or Bootstrap (FALSE)?
+subsample <- TRUE
+# If subsampling, how many checklists in each subsample?
+subsample_size <- 10000
+# If subsampling, how to weight? c("none", "checklists", "observers")
+weight_subsample <- "none"
+
+# Create unique parameter folder name
+folder_name <- paste(permutation_iterations,
+                     if_else(subsample == TRUE, 
+                             "subsample", "bootstrap"),
+                     if_else(subsample == TRUE, 
+                             as.character(subsample_size), NA),
+                     if_else(subsample == TRUE, 
+                             as.character(weight_subsample), NA),
+                     sep = "_") %>% 
+  str_remove_all("_NA")
+# Set up folder for output files (note: too big for GitHub, so stored locally)
+output_directory <- paste0(BS_path, folder_name, "/")
+if (!dir.exists(output_directory)) {dir.create(output_directory)}
+
+# Find previous iterations
+previous_iterations <- list.dirs(output_directory, recursive = FALSE) %>% 
+  str_extract_all("\\d+") %>% 
+  lapply(., last) %>% 
+  as.integer() %>% 
+  unique() %>% 
+  sort()
+
+bootstrap_iterations <- if (overwrite_iterations == TRUE) {
+  1:bootstrap_iterations_total
+} else {
+  (1:bootstrap_iterations_total)[1:bootstrap_iterations_total %notin%
+                                   previous_iterations]
+}
+
+starting_environment <- ls()
+```
+
+Create tables of checklists and observers, for use when bootstrapping / subsampling:
+
+```{r}
+EB_checklists <- EB_zf %>% 
+  select(checklist_id, observer_id, duration_minutes) %>% 
+  distinct() %>% 
+  group_by(observer_id) %>% 
+  mutate(observer_checklists = n()) %>% 
+  ungroup() %>% 
+  mutate(checklist_weighting = 1 / observer_checklists)
+
+EB_observers <- EB_checklists %>% 
+  select(observer_id, observer_checklists) %>% 
+  distinct()
+```
+
+Run bootstrap / subsample model algorithm:
+
+```{r}
+for (bootstrap_iteration in bootstrap_iterations) {
+  tic(bootstrap_iteration)
+  
+  # Bootstrap resample - select checklists
+  EB_checklists_bs <- EB_checklists %>%
+    {if (subsample == TRUE) {
+      if (weight_subsample == "checklists") {
+        # select N checklists without replacement, weighted by the inverse of 
+        # the observer's total checklist count
+        slice_sample(., n = subsample_size, replace = FALSE, 
+                     weight_by = checklist_weighting)
+      } else if (weight_subsample == "observers") {
+        # select N observers randomly, then randomly select 1 checklist 
+        # from each observer
+        filter(., observer_id %in% sample(EB_observers$observer_id, 
+                                          size = subsample_size, 
+                                          replace = FALSE)) %>% 
+          group_by(observer_id) %>% 
+          slice_sample(., n = 1)
+      } else if (weight_subsample == "none") {
+        # select N checklists without replacement, with equal weighting given
+        # to each checklist (ignores observers' checklists counts)
+        slice_sample(., n = subsample_size, replace = FALSE)
+      } else {
+        # throw an error if an unexpected subsampling instruction is given
+        stop("value for weight_subsample is invalid (options are \"checklists\", \"observers\", or \"none\")")
+      }
+    } else {
+      # if not subsampling, then bootstrap
+      slice_sample(., prop = 1, replace = TRUE)
+    }} %>% 
+    group_by(checklist_id) %>% 
+    mutate(replicates = n(),
+           replicate_number = row_number()) %>% 
+    ungroup()
+  
+  # Bootstrap resample - get resampled zerofilled datasets and calculate reporting rates
+  EB_zerofilled_bs <- EB_zf %>% 
+    filter(checklist_id %in% EB_checklists_bs$checklist_id) %>% 
+    full_join(., EB_checklists_bs, relationship = "many-to-many",
+              by = c("checklist_id", "duration_minutes")) %>% 
+    group_by(scientific_name) %>% 
+    mutate(reporting_rate = mean(species_observed)) %>% 
+    ungroup()
+  
+  # Calculate maximum minimum reporting rates for each checklist richness (for later scaling)
+  EB_rrs <- EB_zerofilled_bs %>% 
+    group_by(scientific_name) %>% 
+    summarise(maximum_reporting_rate = mean(species_observed), 
+              .groups = "drop") %>% 
+    arrange(desc(maximum_reporting_rate)) %>% 
+    mutate(n_species = row_number()) %>% 
+    select(n_species, maximum_reporting_rate)
+  
+  # Produce real observation dataset
+  EB_real_obs <- EB_zerofilled_bs %>% 
+    filter(species_observed == TRUE) %>% 
+    mutate(checklist_uid = paste(checklist_id, replicate_number, sep = "-")) %>% 
+    select(checklist_id, checklist_uid, scientific_name)
+  
+  # Produce real model dataset
+  EB_real_bs <- EB_zerofilled_bs %>% 
+    filter(species_observed ==  TRUE) %>% 
+    group_by(checklist_id, replicate_number, replicates, n_species,
+             locality_id, latitude, longitude, duration_minutes) %>% # add in covariates
+    summarise(minimum_reporting_rate = min(reporting_rate), .groups = "drop") %>% 
+    mutate(checklist_uid = paste(checklist_id, replicate_number, sep = "-")) %>% 
+    select(-replicate_number) %>% 
+    left_join(., EB_rrs, by = "n_species") %>% 
+    mutate(rarity_score = 1 - (minimum_reporting_rate / maximum_reporting_rate)) %>% 
+    mutate(rarity_score = if_else(rarity_score == 0, 0.0001, rarity_score))
+  
+  # Produce keys to join simulated observations to checklist information
+  EB_sim_key <- EB_zerofilled_bs %>% 
+    filter(species_observed == TRUE) %>% 
+    group_by(checklist_id, replicate_number) %>% 
+    summarise(checklist_number = cur_group_id(), .groups = "drop") %>% 
+    mutate(checklist_uid = paste(checklist_id, replicate_number, sep = "-"))
+  
+  # Produce simulated observation dataset
+  EB_sim_obs <- EB_zerofilled_bs %>% 
+    filter(species_observed == TRUE) %>% 
+    left_join(., EB_sim_key, by = c("checklist_id", "replicate_number")) %>% 
+    select(checklist_number, scientific_name) %>% 
+    permute_lists(data = ., chain_length = permutation_iterations, n_chains = 1,
+                  thin = permutation_iterations, progress = FALSE) %>% 
+    left_join(., EB_sim_key, by = "checklist_number") %>% 
+    select(checklist_id, checklist_uid, scientific_name)
+  
+  # Produce simulated model dataset
+  EB_sim_bs <- EB_sim_obs %>% 
+    group_by(scientific_name) %>% 
+    mutate(n_observations = n()) %>% 
+    ungroup() %>% 
+    mutate(reporting_rate = n_observations / n_distinct(checklist_uid)) %>% 
+    group_by(checklist_uid) %>% 
+    mutate(n_species = n_distinct(scientific_name)) %>% 
+    group_by(checklist_uid) %>% 
+    summarise(minimum_reporting_rate = min(reporting_rate), .groups = "drop") %>% 
+    ungroup() %>% 
+    left_join(EB_real_bs %>% 
+                select(-c(minimum_reporting_rate, maximum_reporting_rate, rarity_score)), 
+              ., by = "checklist_uid") %>% 
+    left_join(., EB_rrs, by = "n_species") %>% 
+    mutate(rarity_score = 1 - (minimum_reporting_rate / maximum_reporting_rate)) %>% 
+    mutate(rarity_score = if_else(rarity_score == 0, 0.0001, rarity_score)) %>% 
+    select(names(EB_real_bs))
+  
+  # Fit real data models
+  EB_real_model <- gamlss(
+    data = EB_real_bs,
+    formula = rarity_score ~
+      ga(~s(duration_minutes, k = 10)) +
+      ga(~s(log(duration_minutes), k = 10)),
+    sigma.formula = rarity_score ~ duration_minutes,
+    family = BE, method = mixed(10, 500), trace = FALSE
+  )
+  
+  # Fit simulated data models
+  EB_sim_model <- gamlss(
+    data = EB_sim_bs,
+    formula = rarity_score ~
+      ga(~s(duration_minutes, k = 10)) +
+      ga(~s(log(duration_minutes), k = 10)),
+    sigma.formula = rarity_score ~ duration_minutes,
+    family = BE, method = mixed(10, 500), trace = FALSE
+  )
+  
+  # Calculate crossover points
+  EB_crossover <- tibble(duration_minutes = seq(1/60, 60, by = 1/60)) %>% 
+    mutate(sim_prediction = predict(EB_sim_model, newdata = ., type = "response"),
+           real_prediction = predict(EB_real_model, newdata = ., type = "response")) %>% 
+    mutate(difference = sign(sim_prediction - real_prediction)) %>% 
+    filter(difference > 0) %>% 
+    pull(duration_minutes) %>% 
+    min()
+  
+  for (object in ls()[ls() %notin% c(starting_environment, "starting_environment")]) {
+    if(!dir.exists(paste0(output_directory,
+                          bootstrap_iteration, "/"))) {
+      dir.create(paste0(output_directory,
+                        bootstrap_iteration, "/"))
+    }
+    save(list = object, file = paste0(output_directory,
+                                      bootstrap_iteration, "/", object, ".RData"))
+  }
+  rm(object)
+  
+  toc()
+}
+```
+
+Estimate true crossover duration:
+
+```{r}
+EB_crossovers <- tibble(
+  bootstrap_iteration = rep(NA, bootstrap_iterations_total),
+  crossover_duration = rep(NA, bootstrap_iterations_total)
+)
+
+for (i in 1:bootstrap_iterations_total) {
+  load(paste0(output_directory, i, "/EB_crossover.RData"))
+  
+  EB_crossovers[i, ] <- list(i, EB_crossover)
+}
+
+rm(EB_crossover)
+
+EB_crossovers_summary <- EB_crossovers %>% 
+  summarise(median_duration = median(crossover_duration),
+            q025_duration = quantile(crossover_duration, 0.025),
+            q975_duration = quantile(crossover_duration, 0.975))
+
+EB_crossover <- EB_crossovers_summary$median_duration
+save(EB_crossover, file = "Data/EB_crossover.RData")
+
+cat(paste0(
+  "Median Estimate: ", round(EB_crossovers_summary$median_duration, 3),
+  " minutes\n95% Interval: [", round(EB_crossovers_summary$q025_duration, 3),
+  "; ", round(EB_crossovers_summary$q975_duration, 3), "]"))
+
+plot1 <- ggplot() +
+  geom_histogram(data = EB_crossovers,
+                 aes(x = crossover_duration, y = after_stat(density) / 4),
+                 binwidth = 0.5) +
+  geom_vline(data = EB_crossovers_summary, aes(xintercept = median_duration),
+             linetype = "dotted") +
+  geom_errorbar(data = EB_crossovers_summary,
+                aes(xmin = q025_duration, xmax = q975_duration, y = 0.35),
+                width = 0.02) +
+  expand_limits(x = c(0, 10), y = 0.4) +
+  labs(x = "Crossover Duration (min)", y = "Density") +
+  theme_classic()
+
+ggplotly(plot1)
+```
+
+Plot all bootstrap / subsample model lines:
+
+```{r}
+EB_real_line <- tibble(
+  bootstrap_iteration = integer(),
+  duration_minutes = numeric(),
+  prediction = numeric()
+)
+
+EB_sim_line <- tibble(
+  bootstrap_iteration = integer(),
+  duration_minutes = numeric(),
+  prediction = numeric()
+)
+
+for (i in 1:bootstrap_iterations_total) {
+  load(paste0(output_directory, i, "/EB_real_model.RData"))
+  load(paste0(output_directory, i, "/EB_sim_model.RData"))
+  load(paste0(output_directory, i, "/EB_real_bs.RData"))
+  load(paste0(output_directory, i, "/EB_sim_bs.RData"))
+
+  EB_real <- tibble(duration_minutes = seq(1/6, 30, by = 1/6)) %>% 
+    mutate(prediction = predict(EB_real_model, newdata = ., type = "response"),
+           bootstrap_iteration = i) %>% 
+    select(bootstrap_iteration, duration_minutes, prediction)
+  
+  EB_sim <- tibble(duration_minutes = seq(1/6, 30, by = 1/6)) %>% 
+    mutate(prediction = predict(EB_sim_model, newdata = ., type = "response"),
+           bootstrap_iteration = i) %>% 
+    select(bootstrap_iteration, duration_minutes, prediction)
+
+  EB_real_line <- bind_rows(EB_real_line, EB_real)
+
+  EB_sim_line <- bind_rows(EB_sim_line, EB_sim)
+}
+
+rm(EB_real, EB_sim, EB_real_bs, EB_sim_bs, EB_real_model, EB_sim_model)
+
+EB_real_line <- EB_real_line %>% 
+  mutate(bootstrap_iteration = factor(bootstrap_iteration))
+
+EB_sim_line <- EB_sim_line %>% 
+  mutate(bootstrap_iteration = factor(bootstrap_iteration))
+
+EB_real_summary <- EB_real_line %>% 
+  group_by(duration_minutes) %>% 
+  summarise(median_prediction = median(prediction, na.rm = FALSE),
+            .groups = "drop") 
+
+EB_sim_summary <- EB_sim_line %>% 
+  group_by(duration_minutes) %>% 
+  summarise(median_prediction = median(prediction, na.rm = FALSE),
+            .groups = "drop") 
+
+plot2 <- ggplot() +
+  geom_line(data = EB_real_line,
+            mapping = aes(x = duration_minutes, y = prediction, 
+                          group = bootstrap_iteration),
+            colour = "orange", alpha = 0.01) +
+  geom_line(data = EB_sim_line,
+            mapping = aes(x = duration_minutes, y = prediction, 
+                          group = bootstrap_iteration),
+            colour = "darkblue", alpha = 0.01) +
+  geom_line(data = EB_real_summary,
+            mapping = aes(x = duration_minutes, y = median_prediction),
+            colour = "orange", linewidth = 1) +
+  geom_line(data = EB_sim_summary,
+            mapping = aes(x = duration_minutes, y = median_prediction),
+            colour = "darkblue", linewidth = 1) +
+  geom_vline(xintercept = EB_crossover, linetype = "dotted") +
+  labs(x = "Checklist Duration (min)", 
+       y = "(Less Rare)            Modelled Checklist Rarity Score             (More Rare)") +
+  lims(x = c(0, 20), y = c(0, 1)) +
+  theme_classic() +
+  theme(legend.position = "none")
+
+ggplotly(plot2)
+ggsave(plot = plot2, filename = "CrossoverPlot.png", height = 6, width = 9)
+```
+
+![](CrossoverPlot.png)
+
+Compare observed and simulated reporting rates for checklists below the crossover duration, and calculate preference ratios with confidence intervals via a non-parametric bootstrap:
+
+```{r}
+EB_rrs <- EB_zf %>% 
+  group_by(scientific_name) %>% 
+  summarise(reporting_rate = mean(species_observed))
+
+rebuild_crossovers <- FALSE
+
+if (rebuild_crossovers == TRUE | !file.exists("Data/EB_real_precrossovers.RData") |
+    !file.exists("Data/EB_sim_precrossovers.RData")) {
+  EB_real_precrossovers <- tibble(
+    bootstrap_iteration = integer(),
+    n_lists = integer(),
+    scientific_name = character(),
+    n = integer()
+  )
+  
+  EB_sim_precrossovers <- tibble(
+    bootstrap_iteration = integer(),
+    n_lists = integer(),
+    scientific_name = character(),
+    n = integer()
+  )
+  
+  for (i in 1:bootstrap_iterations_total) {
+    load(paste0(output_directory, i, "/EB_real_obs.RData"))
+    load(paste0(output_directory, i, "/EB_sim_obs.RData"))
+    load(paste0(output_directory, i, "/EB_checklists_bs.RData"))
+    
+    EB_real_precrossover <- EB_real_obs %>% 
+      left_join(., distinct(EB_checklists_bs, checklist_id, duration_minutes),
+                by = "checklist_id") %>% 
+      filter(duration_minutes < EB_crossover) %>% 
+      mutate(n_lists = n_distinct(checklist_uid)) %>% 
+      group_by(scientific_name, n_lists) %>% 
+      tally() %>% 
+      mutate(bootstrap_iteration = i) %>% 
+      select(bootstrap_iteration, n_lists, scientific_name, n)
+    
+    EB_sim_precrossover <- EB_sim_obs %>% 
+      left_join(., distinct(EB_checklists_bs, checklist_id, duration_minutes),
+                by = "checklist_id") %>% 
+      filter(duration_minutes < EB_crossover) %>% 
+      mutate(n_lists = n_distinct(checklist_uid)) %>% 
+      group_by(scientific_name, n_lists) %>% 
+      tally() %>% 
+      mutate(bootstrap_iteration = i) %>% 
+      select(bootstrap_iteration, n_lists, scientific_name, n)
+    
+    EB_real_precrossovers <- bind_rows(EB_real_precrossovers, EB_real_precrossover)
+    
+    EB_sim_precrossovers <- bind_rows(EB_sim_precrossovers, EB_sim_precrossover)
+  }
+  
+  save(EB_real_precrossovers, file = "Data/EB_real_precrossovers.RData")
+  save(EB_sim_precrossovers, file = "Data/EB_sim_precrossovers.RData")
+  
+} else {
+  load("Data/EB_real_precrossovers.RData")
+  load("Data/EB_sim_precrossovers.RData")
+}
+
+rebuild_bootstrap <- FALSE
+
+if (rebuild_bootstrap == TRUE | !file.exists("Data/EB_preference.RData")) {
+  for (i in 1:1000) {
+    EB_real_precrossovers_bs <- expand_grid(
+      scientific_name = EB_rrs$scientific_name,
+      bootstrap_iteration = sample(1:bootstrap_iterations_total, 
+                                   replace = TRUE)) %>% 
+      left_join(., select(EB_real_precrossovers, -n_lists),
+                by = c("scientific_name", "bootstrap_iteration")) %>% 
+      mutate(n = replace_na(n, 0)) %>% 
+      group_by(scientific_name) %>% 
+      summarise(real_n = sum(n))
+    
+    EB_sim_precrossovers_bs <- expand_grid(
+      scientific_name = EB_rrs$scientific_name,
+      bootstrap_iteration = sample(1:bootstrap_iterations_total, 
+                                   replace = TRUE)) %>% 
+      left_join(., select(EB_sim_precrossovers, -n_lists),
+                by = c("scientific_name", "bootstrap_iteration")) %>% 
+      mutate(n = replace_na(n, 0)) %>% 
+      group_by(scientific_name) %>% 
+      summarise(sim_n = sum(n))
+    
+    EB_precrossovers_bs <- full_join(
+      EB_real_precrossovers_bs, EB_sim_precrossovers_bs,
+      by = "scientific_name") %>% 
+      mutate(bs_i = i)
+    
+    if (i == 1) {
+      EB_precrossovers_bs_all <- EB_precrossovers_bs
+    } else {
+      EB_precrossovers_bs_all <- bind_rows(
+        EB_precrossovers_bs_all, EB_precrossovers_bs)
+    }
+  }
+  
+  EB_preference <- EB_precrossovers_bs_all %>% 
+    mutate(EB_preference = real_n / sim_n) %>% 
+    group_by(scientific_name) %>% 
+    summarise(EB_preference_est = median(EB_preference),
+              EB_preference_lci = if_else(
+                sum(is.na(EB_preference)) == 0,
+                quantile(EB_preference, 0.025, na.rm = TRUE), NA),
+              EB_preference_uci = if_else(
+                sum(is.na(EB_preference)) == 0,
+                quantile(EB_preference, 0.975, na.rm = TRUE), NA)) %>% 
+    rowwise() %>% 
+    mutate(
+      CI_calculable = as.logical(min(c(
+        !is.na(EB_preference_lci), !is.na(EB_preference_uci),
+        EB_preference_lci != EB_preference_uci), na.rm = TRUE)),
+      EST_calculable = as.logical(min(c(
+        EB_preference_est < Inf, EB_preference_est > 0, 
+        !is.na(EB_preference_est)), na.rm = TRUE)))
+  
+  save(EB_preference, file = "Data/EB_preference.RData")
+  
+} else {
+  load("Data/EB_preference.RData")
+}
+
+plot3_data_preference <- left_join(EB_preference, EB_rrs, by = "scientific_name") %>% 
+  filter(CI_calculable == TRUE, EST_calculable == TRUE)
+
+plot3_gam_model <- gam(data = plot3_data_preference,
+                       formula = log10(EB_preference_est) ~
+                         s(log10(reporting_rate), bs = "ds", k = 4),
+                       gamma = 1.4)
+
+plot3_data_gam <- tibble(reporting_rate = plot3_data_preference %>% 
+                           pull(reporting_rate) %>% 
+                           min() %>% 
+                           log10() %>% 
+                           seq(from = ., to = 0, by = 0.1) %>% 
+                           `^`(10, .)) 
+plot3_data_gam <- bind_cols(plot3_data_gam, predict(plot3_gam_model, plot3_data_gam, se.fit = TRUE)) %>% 
+  mutate(EB_preference_est = 10 ^ fit,
+         EB_preference_lci = 10 ^ (fit + qnorm(0.025) * se.fit),
+         EB_preference_uci = 10 ^ (fit + qnorm(0.975) * se.fit))
+
+plot3 <- ggplot() +
+  geom_ribbon(data = plot3_data_gam, alpha = 0.2,
+              mapping = aes(x = reporting_rate, 
+                            ymin = EB_preference_lci, ymax = EB_preference_uci)) +
+  geom_line(data = plot3_data_gam, size = 1, linetype = "solid",
+            mapping = aes(x = reporting_rate, y = EB_preference_est)) + 
+  geom_linerange(data = plot3_data_preference,
+                 linetype = "solid", alpha = 0.2,
+                 mapping = aes(x = reporting_rate,
+                               ymin = EB_preference_lci, ymax = EB_preference_uci)) +
+  geom_point(data = plot3_data_preference,
+             mapping = aes(x = reporting_rate, y = EB_preference_est, label = scientific_name)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  scale_x_log10(labels = scales::percent) +
+  scale_y_log10(breaks = c(1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:10", "1:3", "1:1", "3:1", "10:1", "30:1")) + 
+  labs(x = "Species Reporting Rate", y = "eBird Preference Ratio") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank())
+
+ggplotly(plot3)
+
+ggsave(plot = plot3, filename = "EB_preference.png", width = 9, height = 6)
+```
+
+![](EB_preference.png)
+
+```{r}
+left_join(EB_preference, EB_rrs, by = "scientific_name") %>% 
+  mutate(across(is.numeric, round, digits = 4)) %>% 
+  select(scientific_name, reporting_rate, EB_preference_est,
+         EB_preference_lci, EB_preference_uci, 
+         EST_calculable, CI_calculable) %>% 
+  rename("Scientific Name" = scientific_name, 
+         "Reporting Rate" = reporting_rate,
+         "eBird Preference Ratio" = EB_preference_est,
+         "LCI" = EB_preference_lci,
+         "UCI" = EB_preference_uci,
+         "Proper CI?" = CI_calculable,
+         "Proper Estimate?" = EST_calculable) %>% 
+  datatable(filter = "top")
+```

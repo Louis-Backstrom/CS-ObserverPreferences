@@ -1,0 +1,350 @@
+---
+title: "04: Britain eBird/BirdTrack Comparison"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 12
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+---
+
+Load in relevant packages, functions and datasets:
+
+```{r}
+library(tidyverse)
+library(auk)
+library(mgcv)
+library(DT)
+library(plotly)
+
+load("Data/EB_preference.RData")
+load("Data/BT_preference.RData")
+load("Data/breeding_common.RData")
+load("Data/EB_rrs.RData")
+load("Data/BT_rrs.RData")
+
+LUT_taxonomy <- read_csv("Data/EB_BT_LUT.csv")
+
+sessionInfo()
+```
+
+Load eBird and BirdTrack preference scores:
+
+```{r}
+breeding_preference <- full_join(EB_preference, BT_preference, 
+                                 by = "scientific_name") %>% 
+  select(-contains("calculable")) %>% 
+  filter(scientific_name %in% breeding_common) 
+
+cor.test(formula = ~ log(EB_preference_est) + log(BT_preference_est),
+         data = breeding_preference)
+
+all_preference <- full_join(
+  filter(EB_preference, EST_calculable == TRUE, CI_calculable == TRUE),
+  filter(BT_preference, EST_calculable == TRUE, CI_calculable == TRUE) %>% 
+    # bring in look-up table to align taxonomies - only adds 3 species 
+    # (Western Cattle-Egret, Eurasian Goshawk, Little Ringed Plover)
+    left_join(., LUT_taxonomy, by = c("scientific_name" = "BT_scientific_name")) %>% 
+    mutate(scientific_name = if_else(is.na(EB_replacement_name), 
+                                     scientific_name, EB_replacement_name)) %>% 
+    select(names(BT_preference)),
+  by = "scientific_name") %>% 
+  select(-contains("calculable")) %>% 
+  drop_na()
+
+cor.test(formula = ~ log(EB_preference_est) + log(BT_preference_est),
+         data = all_preference)
+
+plot1 <- ggplot() + 
+  geom_vline(xintercept = 1, linetype = "dotted") +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  geom_linerange(data = all_preference, colour = "grey75", alpha = 0.2,
+                 aes(x = EB_preference_est, ymin = BT_preference_lci, 
+                     ymax = BT_preference_uci, label = scientific_name)) +
+  geom_linerange(data = all_preference, colour = "grey75", alpha = 0.2, 
+                 aes(xmin = EB_preference_lci, xmax = EB_preference_uci, 
+                     y = BT_preference_est, label = scientific_name)) +
+  geom_point(data = all_preference, colour = "grey75",
+             aes(x = EB_preference_est, y = BT_preference_est, label = scientific_name)) +
+  geom_linerange(data = breeding_preference, alpha = 0.2, 
+                 aes(x = EB_preference_est, ymin = BT_preference_lci, 
+                     ymax = BT_preference_uci, label = scientific_name)) +
+  geom_linerange(data = breeding_preference, alpha = 0.2, 
+                 aes(xmin = EB_preference_lci, xmax = EB_preference_uci, 
+                     y = BT_preference_est, label = scientific_name)) +
+  geom_point(data = breeding_preference,
+             aes(x = EB_preference_est, y = BT_preference_est, label = scientific_name)) + 
+  # annotate(geom = "text", x = 1/27.5, y = 27.5, hjust = 0, vjust = 1,
+  #          label = "Overreported in BirdTrack\nUnderreported in eBird") +
+  # annotate(geom = "text", x = 27.5, y = 27.5, hjust = 1, vjust = 1,
+  #          label = "Overreported in BirdTrack\nOverreported in eBird") +
+  # annotate(geom = "text", x = 1/27.5, y = 1/27.5, hjust = 0, vjust = 0,
+  #          label = "Underreported in BirdTrack\nUnderreported in eBird") +
+  # annotate(geom = "text", x = 27.5, y = 1/27.5, hjust = 1, vjust = 0,
+  #          label = "Underreported in BirdTrack\nOverreported in eBird") +
+  scale_x_log10(breaks = c(1/30, 1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:30", "1:10", "1:3", "1:1", "3:1", "10:1", "30:1")) + 
+  scale_y_log10(breaks = c(1/30, 1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:30", "1:10", "1:3", "1:1", "3:1", "10:1", "30:1")) + 
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "eBird Preference Ratio", y = "BirdTrack Preference Ratio") +
+  coord_equal(xlim = c(1/30, 30), ylim = c(1/30, 30))
+
+ggplotly(plot1)
+ggsave(plot1, filename = "ComparisonPlot.png", width = 9, height = 8)
+
+breeding_preference %>% 
+  select(scientific_name, EB_preference_est, BT_preference_est) %>% 
+  mutate(across(is.numeric, round, digits = 3)) %>% 
+  rename("Species" = scientific_name, 
+         "eBird Preference Ratio" = EB_preference_est,
+         "BirdTrack Preference Ratio" = BT_preference_est) %>% 
+  datatable(caption = "eBird vs BirdTrack Preference Comparison", rownames = FALSE)
+```
+
+![](ComparisonPlot.png)
+
+Supplementary analysis following Johnston et al. 2023:
+
+```{r}
+EB_both_ebd <- read_ebd(x = "Data/supp_ebd_relDec-2024_GBR.txt",
+                        unique = FALSE, rollup = TRUE)
+EB_both_sed <- read_sampling("Data/supp_ebd_sampling_relDec-2024_GBR.txt",
+                             unique = FALSE)
+
+EB_complete_ebd <- EB_both_ebd %>%
+  filter(all_species_reported == TRUE)
+EB_complete_sed <- EB_both_sed %>%
+  filter(all_species_reported == TRUE)
+EB_complete_nlists <- EB_complete_sed %>%
+  pull(sampling_event_identifier) %>%
+  n_distinct()
+EB_complete_rrs <- EB_complete_ebd %>%
+  group_by(scientific_name) %>%
+  summarise(complete_obs = n()) %>%
+  mutate(complete_reporting_rate = complete_obs / EB_complete_nlists)
+
+EB_incomplete_ebd <- EB_both_ebd %>%
+  filter(all_species_reported == FALSE)
+EB_incomplete_sed <- EB_both_sed %>%
+  filter(all_species_reported == FALSE)
+EB_incomplete_nlists <- EB_incomplete_sed %>%
+  pull(sampling_event_identifier) %>%
+  n_distinct()
+EB_incomplete_rrs <- EB_incomplete_ebd %>%
+  group_by(scientific_name) %>%
+  summarise(incomplete_obs = n()) %>%
+  mutate(incomplete_reporting_rate = incomplete_obs / EB_incomplete_nlists)
+
+plot2_data_preference <- full_join(EB_complete_rrs, EB_incomplete_rrs,
+                                   by = "scientific_name") %>% 
+  mutate(ratio_est = incomplete_reporting_rate / complete_reporting_rate)
+
+plot2_gam_model <- gam(data = plot2_data_preference,
+                       formula = log10(ratio_est) ~
+                         s(log10(complete_reporting_rate), bs = "ds", k = 4),
+                       gamma = 1.4)
+
+plot2_data_gam <- tibble(complete_reporting_rate = plot2_data_preference %>% 
+                           pull(complete_reporting_rate) %>% 
+                           discard(is.na) %>% 
+                           min() %>% 
+                           log10() %>% 
+                           seq(from = ., to = 0, by = 0.1) %>% 
+                           `^`(10, .)) 
+plot2_data_gam <- bind_cols(plot2_data_gam, predict(plot2_gam_model, plot2_data_gam, se.fit = TRUE)) %>% 
+  mutate(ratio_est = 10 ^ fit,
+         ratio_lci = 10 ^ (fit + qnorm(0.025) * se.fit),
+         ratio_uci = 10 ^ (fit + qnorm(0.975) * se.fit))
+
+plot2 <- ggplot() +
+  geom_ribbon(data = plot2_data_gam, alpha = 0.2,
+              mapping = aes(x = complete_reporting_rate, 
+                            ymin = ratio_lci, ymax = ratio_uci)) +
+  geom_line(data = plot2_data_gam, size = 1, linetype = "solid",
+            mapping = aes(x = complete_reporting_rate, y = ratio_est)) + 
+  geom_point(data = plot2_data_preference,
+             mapping = aes(x = complete_reporting_rate, y = ratio_est, label = scientific_name)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  scale_x_log10(labels = scales::percent) +
+  scale_y_log10(breaks = c(1/10, 1/3, 1, 3, 10), 
+                labels = c("1:10", "1:3", "1:1", "3:1", "10:1"),
+                limits = c(1/10, 10)) + 
+  labs(x = "Species Reporting Rate (Complete Checklists)", 
+       y = "Incomplete:complete Checklist Ratio") +
+  theme_classic()
+
+ggplotly(plot2)
+
+ggsave(plot = plot2, filename = "CompleteIncomplete.png", width = 9, height = 6)
+```
+
+![](CompleteIncomplete.png)
+
+```{r}
+EB_comparison_all <- left_join(EB_preference, plot2_data_preference,
+                               by = "scientific_name") %>%
+  left_join(., EB_rrs, by = "scientific_name") %>% 
+  filter(EST_calculable == TRUE, CI_calculable == TRUE) %>% 
+  select(-c(EST_calculable, CI_calculable)) %>% 
+  drop_na()
+
+cor.test(formula = ~ log(EB_preference_est) + log(ratio_est),
+         data = EB_comparison_all)
+
+EB_comparison_breeding <- EB_comparison_all %>% 
+  filter(scientific_name %in% breeding_common)
+
+cor.test(formula = ~ log(EB_preference_est) + log(ratio_est),
+         data = EB_comparison_breeding)
+
+plot3 <- ggplot() +
+  geom_vline(xintercept = 1, linetype = "dotted") +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  geom_point(data = EB_comparison_all, colour = "grey75",
+             aes(y = EB_preference_est, x = ratio_est, label = scientific_name)) +
+  geom_point(data = EB_comparison_breeding,
+             aes(y = EB_preference_est, x = ratio_est, label = scientific_name)) +
+  scale_x_log10(breaks = c(1/30, 1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:30", "1:10", "1:3", "1:1", "3:1", "10:1", "30:1"),
+                limits = c(1/30, 30)) + 
+  scale_y_log10(breaks = c(1/30, 1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:30", "1:10", "1:3", "1:1", "3:1", "10:1", "30:1"),
+                limits = c(1/30, 30)) + 
+  coord_equal() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(y = "eBird Preference Ratio", x = "Incomplete:complete Checklist Ratio")
+
+ggplotly(plot3)
+
+ggsave(plot = plot3, filename = "CompleteIncompleteComparison.png", 
+       width = 9, height = 8)
+```
+
+![](CompleteIncompleteComparison.png)
+
+```{r}
+plot4 <- bind_rows(
+  
+  tibble(
+    x = exp(seq(-10, 10, 1)),
+    ymin = exp(seq(-15, 5, 1)),
+    ymax = exp(seq(-5, 15, 1)),
+    hypothesis = "A: All preferences in incomplete lists also\nexist in the list initiation of complete lists"
+  ),
+  
+  tibble(
+    x = exp(seq(-10, 10, 1)),
+    ymin = exp(rep(-5, 21)),
+    ymax = exp(rep(5, 21)),
+    hypothesis = "B: No preferences in incomplete lists also\nexist in the list initiation of complete lists"
+  ),
+  
+  tibble(
+    x = exp(seq(-10, 10, 1)),
+    ymin = exp(c(rep(-5, 10), seq(-5, 5, 1))),
+    ymax = exp(c(rep(5, 10), seq(5, 15, 1))),
+    hypothesis = "C: Overpreferred species in incomplete lists\nare retained in lists initiation of complete lists"
+  ),
+  
+  tibble(
+    x = exp(seq(-10, 10, 1)),
+    ymin = exp(c(seq(-15, -5, 1), rep(-5, 10))),
+    ymax = exp(c(seq(-5, 5, 1), rep(5, 10))),
+    hypothesis = "D: Underpreferred species in incomplete lists\nare retained in lists initiation of complete lists"
+  ),
+  
+) %>%
+  ggplot() +
+  geom_vline(xintercept = 1, linetype = "dotted") +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  geom_ribbon(aes(x = x, ymin = ymin, ymax = ymax, fill = hypothesis),
+              alpha = 0.5) +
+  scale_x_log10(breaks = 1, labels = "1:1") +
+  scale_y_log10(breaks = 1, labels = "1:1") +
+  theme_classic() +
+  theme(legend.position = "none", strip.background = element_blank(),
+        axis.line = element_blank()) +
+  labs(y = "eBird Preference Ratio", x = "Incomplete:Complete Checklist Ratio") +
+  facet_wrap(~ hypothesis)
+
+ggplotly(plot4)
+
+ggsave(plot = plot4, filename = "CompleteIncompleteHypotheses.png", 
+       width = 9, height = 8)
+```
+
+Full table of species' preference scores:
+
+```{r}
+full_join(
+  left_join(EB_preference, EB_rrs) %>% 
+    mutate(reporting_rate = paste0(substr(
+      formatC(reporting_rate * 100, format = "f", digits = 4), 1, 5), "%")) %>% 
+    mutate(EB_preference_est = if_else(
+      is.na(EB_preference_est), "NA", if_else(
+        is.infinite(EB_preference_est), "Inf", substr(
+          formatC(EB_preference_est, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(EB_preference_lci = if_else(
+      is.na(EB_preference_lci), "NA", if_else(
+        is.infinite(EB_preference_lci), "Inf", substr(
+          formatC(EB_preference_lci, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(EB_preference_uci = if_else(
+      is.na(EB_preference_uci), "NA", if_else(
+        is.infinite(EB_preference_uci), "Inf", substr(
+          formatC(EB_preference_uci, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(EB_preference_ci = if_else(
+      EB_preference_lci == "NA" | EB_preference_uci == "NA", "NA",
+      paste0("[", EB_preference_lci, "; ", EB_preference_uci, "]"))) %>% 
+    mutate(EB_preference = if_else(
+      CI_calculable == TRUE & EST_calculable == TRUE,
+      paste(EB_preference_est, EB_preference_ci),
+      "No estimate")) %>% 
+    select(scientific_name, "EB_reporting_rate" = reporting_rate, EB_preference),
+  left_join(BT_preference, BT_rrs) %>% 
+    mutate(reporting_rate = paste0(substr(
+      formatC(reporting_rate * 100, format = "f", digits = 4), 1, 5), "%")) %>% 
+    mutate(BT_preference_est = if_else(
+      is.na(BT_preference_est), "NA", if_else(
+        is.infinite(BT_preference_est), "Inf", substr(
+          formatC(BT_preference_est, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(BT_preference_lci = if_else(
+      is.na(BT_preference_lci), "NA", if_else(
+        is.infinite(BT_preference_lci), "Inf", substr(
+          formatC(BT_preference_lci, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(BT_preference_uci = if_else(
+      is.na(BT_preference_uci), "NA", if_else(
+        is.infinite(BT_preference_uci), "Inf", substr(
+          formatC(BT_preference_uci, format = "f", digits = 4), 1, 5)))) %>% 
+    mutate(BT_preference_ci = if_else(
+      BT_preference_lci == "NA" | BT_preference_uci == "NA", "NA",
+      paste0("[", BT_preference_lci, "; ", BT_preference_uci, "]"))) %>% 
+    mutate(BT_preference = if_else(
+      CI_calculable == TRUE & EST_calculable == TRUE,
+      paste(BT_preference_est, BT_preference_ci),
+      "No estimate")) %>% 
+    select(scientific_name, "BT_reporting_rate" = reporting_rate, BT_preference) %>% 
+    left_join(., LUT_taxonomy %>% 
+                select(scientific_name = BT_scientific_name, EB_replacement_name)) %>% 
+    mutate(scientific_name = if_else(is.na(
+      EB_replacement_name), scientific_name, EB_replacement_name)) %>% 
+    select(-EB_replacement_name)
+) %>% 
+  arrange(scientific_name) %>% 
+  replace(is.na(.), "Not in dataset") %>% 
+  left_join(., ebird_taxonomy) %>% 
+  select("Scientific Name" = scientific_name,
+         "Common Name" = common_name,
+         "eBird Reporting Rate" = EB_reporting_rate,
+         "eBird Preference Ratio" = EB_preference,
+         "BirdTrack Reporting Rate" = BT_reporting_rate,
+         "BirdTrack Preference Ratio" = "BT_preference") %>% 
+  write_csv("SupplementaryTable1.csv")
+```

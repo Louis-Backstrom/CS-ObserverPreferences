@@ -1,0 +1,479 @@
+---
+title: "01: Britain Data Processing"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 12
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+---
+
+# Introduction
+
+We believe the BirdTrack app had list-order tracking added during the 3.0.0 update (31 Jan 2019, or possibly the 3.1.0 update 7 Jun 2019), and removed during the 4.0.3 update (30 Aug 2022). This means that 2020 and 2021 are the only full years where mobile checklists are likely to be in list-entry order (<https://apps.apple.com/gb/app/birdtrack/id596839218>).
+
+Load in relevant packages:
+
+```{r}
+library(tidyverse)
+library(RSQLite)
+library(sf)
+library(lutz)
+library(suncalc)
+library(remotes)
+library(auk)
+
+packageVersion("auk")
+
+source("CustomFunctions.R")
+ls()
+
+source("FilePaths.R") # filepaths for (large) data files stored locally (file not provided to maintain double blind)
+
+sessionInfo()
+```
+
+Produce shapefile boundary for Britain:
+
+```{r}
+Britain_sf <- read_sf("Data/Provided/bdline_gb.gpkg", layer = "country_region") %>% 
+  st_union() %>% 
+  st_transform(crs = 4326)
+
+plot(Britain_sf)
+```
+
+Provide list of eBird users to remove:
+
+```{r}
+observer_blacklist <- c("obs352263", "obs90515", "obs918130",
+                        "obsr352263", "obsr90515", "obsr918130")
+# note: seems to have been a recent change swapping between obsr and obs in format!
+# observer_blacklist <- c()
+```
+
+Remove data from three users with aberrant unusual data patterns of eBird use - obs352263 (17,000 checklists in 2021, of which 15,000 either 5 or 10 minutes long), obs90515 (4,500 checklists in 2021, of which 2,500 5 minutes long, and possibly pseudo-standardised), and obs918130 (many unusual 2-species 1-minute checklists that may be due to an eBird bug).
+
+# Data Processing
+
+Read in and process BirdTrack data with a number of filters:
+
+```{r}
+if (!file.exists("Data/BT_all.RData")) {
+  # Set up SQL connection, read in SQL tables and produce 4 datasets:
+  # locations, observations, taxonomy, and checklists
+  BT_connection <- dbConnect(drv = SQLite(), dbname = BT_path)
+  
+  BT_tables <- dbListTables(BT_connection)
+  BT_tables <- BT_tables[BT_tables != "sqlite_sequence"]
+  
+  BT_dataframes <- vector("list", length = length(BT_tables))
+  
+  for (i in seq(along = BT_tables)) {
+    BT_dataframes[[i]] <- dbGetQuery(
+      conn = BT_connection, statement = paste(
+        "SELECT * FROM '", BT_tables[[i]], "'", sep = "")
+    )
+  }
+  
+  BT_locations <- BT_dataframes[[1]]
+  BT_observations <- BT_dataframes[[2]]
+  BT_taxonomy <- BT_dataframes[[3]]
+  BT_checklists <- BT_dataframes[[4]]
+  
+  dbDisconnect(BT_connection)
+  rm(BT_connection, BT_tables, BT_dataframes, i)
+  
+  # Filter locations to only those within the Britain region
+  BT_locations <- BT_locations %>% 
+    select(locality_id = loc_id,
+           locality_name = name,
+           latitude,
+           longitude) %>% 
+    st_as_sf(coords = c("longitude", "latitude"), crs = 4326, remove = FALSE) %>% 
+    mutate(in_area = as.logical(lengths(st_intersects(., Britain_sf)))) %>% 
+    st_drop_geometry() %>% 
+    filter(in_area == TRUE) %>% 
+    select(-in_area)
+  
+  # Filter checklists to only those from filtered locations, and then further filter to only 
+  # complete, mobile-uploaded, checklists from 2021, with duration between 1 minute and 5 hours
+  BT_checklists <- BT_checklists %>%
+    select(checklist_id = sub_id,
+           creation_date = creation_dt,
+           locality_id = loc_id,
+           observer_id = user_code,
+           observation_date = obs_date,
+           observation_time = obs_time,
+           duration_hours = duration_hrs,
+           all_observations_reported = all_obs_reported,
+           data_source = data_source) %>% 
+    filter(locality_id %in% BT_locations$locality_id) %>% 
+    mutate(creation_date = dmy_hms(creation_date),
+           observation_date = dmy(observation_date),
+           observation_time = hm(observation_time),
+           duration_hours = as.numeric(duration_hours),
+           duration_minutes = round(duration_hours * 60),
+           all_observations_reported = as.logical(all_observations_reported)) %>% 
+    filter(year(creation_date) == 2021,
+           year(observation_date) == 2021,
+           duration_minutes >= 1,
+           duration_minutes <= 300,
+           all_observations_reported == TRUE,
+           data_source == "M") %>% 
+    select(checklist_id, locality_id, observer_id, observation_date,
+           observation_time, duration_minutes)
+  
+  # Filter checklists to remove nocturnal lists
+  BT_checklists <- BT_checklists %>% 
+    left_join(., select(BT_locations, locality_id, latitude, longitude), 
+              by = "locality_id") %>% 
+    mutate(
+      time_zone = tz_lookup_coords(lat = latitude, lon = longitude, 
+                                   method = "accurate"),
+      date_time_start = as_datetime(observation_date + observation_time),
+      date_time_end = date_time_start + minutes(duration_minutes),
+      date_time_start_utc = force_tzs(date_time_start, tzones = time_zone),
+      date_time_end_utc = date_time_start_utc + minutes(duration_minutes),
+      overnight = date(date_time_start) != date(date_time_end)) %>% 
+    filter(overnight == FALSE) %>% 
+    select(-overnight) %>% 
+    mutate(
+      altitude_start = (
+        select(., date = date_time_start_utc, lat = latitude, lon = longitude) %>% 
+          getSunlightPosition(data = .) %>% 
+          pull(altitude)),
+      altitude_end = (
+        select(., date = date_time_end_utc, lat = latitude, lon = longitude) %>% 
+          getSunlightPosition(data = .) %>% 
+          pull(altitude)),
+      diurnal = altitude_start > -6 * pi / 180 & altitude_end > -6 * pi / 180) %>% 
+    filter(diurnal == TRUE) %>% 
+    select(-c(time_zone, contains("date_time"), contains("altitude"), diurnal,
+              latitude, longitude))
+  
+  # Filter observations to only those from filtered checklists, and only include
+  # countable observations
+  BT_observations <- BT_observations %>% 
+    select(checklist_id = sub_id,
+           observation_id = obs_id,
+           taxon_id = master_taxon_id,
+           include_in_counting) %>% 
+    filter(checklist_id %in% BT_checklists$checklist_id,
+           include_in_counting == 1) %>% 
+    select(-include_in_counting)
+  
+  # Run an equivalent to auk::auk_rollup() on the BirdTrack taxonomy (to coerce 
+  # observations below species level to species, and drop anything higher)
+  BT_taxonomy <- BT_taxonomy %>% 
+    select(taxon_id = master_taxon_id,
+           scientific_name,
+           common_name = english_name,
+           taxon_rank = taxon_rank_name,
+           taxa) %>% 
+    mutate(species_binomial = if_else(
+      taxon_rank == "Species", scientific_name, if_else(
+        taxon_rank %in% c("Subspecies", "Subspecies (non-standard)", 
+                               "Variety"),
+        word(scientific_name, 1, 2), NA)))
+  
+  # Join the four datasets together into an EBD-style dataset, and then filter to
+  # only bird observations, drop observations above species level (and duplicated 
+  # subspecies observations), cut redundant columns, and append a checklist 
+  # richness column for later use
+  BT_all <- reduce(list(BT_observations, BT_taxonomy,
+                        BT_checklists, BT_locations),
+                   left_join) %>% 
+    filter(taxa == "Birds") %>% 
+    arrange(observation_id) %>% 
+    mutate(scientific_name = species_binomial) %>% 
+    drop_na(scientific_name) %>% 
+    group_by(checklist_id, scientific_name) %>% 
+    filter(row_number() == 1) %>% 
+    ungroup() %>% 
+    select(observation_id, checklist_id, taxon_id, scientific_name,
+           common_name, locality_id, locality_name, latitude, longitude,
+           observer_id, observation_date, observation_time, duration_minutes) %>% 
+    group_by(checklist_id) %>% 
+    mutate(n_species = n_distinct(scientific_name)) %>% 
+    ungroup()
+  
+  BT_taxonomy <- BT_taxonomy %>% 
+    filter(taxon_rank == "Species",
+           taxa == "Birds") %>% 
+    select(taxon_id, scientific_name, common_name)
+
+  # Create zero-filled dataset (for later use):
+  BT_zf <- BT_all %>% 
+    arrange(observation_id) %>% 
+    group_by(checklist_id) %>% 
+    mutate(obs_order = row_number()) %>% 
+    ungroup() %>% 
+    select(-c(observation_id, common_name, taxon_id)) %>% 
+    pivot_wider(names_from = scientific_name, values_from = obs_order, values_fill = NA) %>% 
+    pivot_longer(cols = unique(BT_all$scientific_name), names_to = "scientific_name", values_to = "obs_order") %>% 
+    left_join(., select(BT_taxonomy, taxon_id, scientific_name, common_name), by = "scientific_name") %>% 
+    arrange(checklist_id, taxon_id) %>% 
+    mutate(species_observed = !is.na(obs_order)) %>% 
+    select(obs_order, checklist_id, taxon_id, scientific_name, common_name,
+           locality_id, locality_name, latitude, longitude,
+           observer_id, observation_date, observation_time, duration_minutes,
+           n_species, species_observed)
+  
+  # Check zero-fill has worked (should both be TRUE)
+  n_distinct(BT_all$checklist_id) * n_distinct(BT_all$scientific_name) == nrow(BT_zf)
+  sum(BT_zf$species_observed) == nrow(BT_all)
+  
+  # Create reporting rate dataset
+  BT_rrs <- BT_zf %>% 
+    group_by(scientific_name) %>% 
+    summarise(reporting_rate = mean(species_observed))
+  BT_breeding_rrs <- BT_zf %>% 
+    filter(month(observation_date) %in% 5:8) %>% 
+        group_by(scientific_name) %>% 
+    summarise(reporting_rate = mean(species_observed))
+  
+  save(BT_all, file = "Data/BT_all.RData")
+  save(BT_locations, file = "Data/BT_locations.RData")
+  save(BT_observations, file = "Data/BT_observations.RData")
+  save(BT_taxonomy, file = "Data/BT_taxonomy.RData")
+  save(BT_checklists, file = "Data/BT_checklists.RData")
+  save(BT_zf, file = "Data/BT_zf.RData")
+  save(BT_rrs, file = "Data/BT_rrs.RData")
+  save(BT_breeding_rrs, file = "Data/BT_breeding_rrs.RData")
+
+} else {
+  load("Data/BT_all.RData")
+  load("Data/BT_locations.RData")
+  load("Data/BT_observations.RData")
+  load("Data/BT_taxonomy.RData")
+  load("Data/BT_checklists.RData")
+  load("Data/BT_zf.RData")
+  load("Data/BT_rrs.RData")
+  load("Data/BT_breeding_rrs.RData")
+}
+```
+
+Do the same with the eBird dataset:
+
+```{r}
+if (!file.exists("Data/EB_all.RData")) {
+  # Remove old versions, if they exist
+  unlink("Data/ebd_relDec-2024_GBR.txt", force = TRUE)
+  unlink("Data/ebd_sampling_relDec-2024_GBR.txt", force = TRUE)
+  
+  # Set up auk EBD pipeline, read in observations and checklists files, then process:
+  auk_ebd(file = EB_obs_path,
+          file_sampling = EB_sam_path) %>% 
+    auk_bbox(bbox = expand_bbox(st_bbox(Britain_sf))) %>% 
+    auk_year(year = 2021) %>% 
+    auk_duration(duration = c(1, 300)) %>% 
+    auk_distance(distance = c(0, 8)) %>% 
+    auk_protocol(protocol = c("Stationary", "Traveling")) %>% 
+    auk_exotic(exotic_code = c("", "N")) %>% 
+    auk_complete() %>%
+    auk_filter(
+      file = "Data/ebd_relDec-2024_GBR.txt",
+      file_sampling = "Data/ebd_sampling_relDec-2024_GBR.txt",
+      overwrite = TRUE)
+  
+  EB_observations <- read_ebd("Data/ebd_relDec-2024_GBR.txt", 
+                              unique = FALSE, rollup = FALSE) %>% 
+    auk_rollup(taxonomy_version = 2024, drop_higher = TRUE)
+  EB_checklists <- read_sampling("Data/ebd_sampling_relDec-2024_GBR.txt",
+                                 unique = FALSE)
+  EB_taxonomy <- ebird_taxonomy
+  EB_locations <- EB_checklists %>% 
+    select(latitude, longitude, locality_id, locality) %>% 
+    distinct()
+
+  # Filter locations to only those within the Britain region
+  EB_locations <- EB_locations %>% 
+    select(locality_id,
+           locality_name = locality,
+           latitude,
+           longitude) %>% 
+    st_as_sf(coords = c("longitude", "latitude"), crs = 4326, remove = FALSE) %>% 
+    mutate(in_area = as.logical(lengths(st_intersects(., Britain_sf)))) %>% 
+    st_drop_geometry() %>% 
+    filter(in_area == TRUE) %>% 
+    select(-in_area)
+  
+  # Filter checklists to only those from filtered locations
+  EB_checklists <- EB_checklists %>% 
+    select(checklist_id = sampling_event_identifier,
+           locality_id,
+           observer_id,
+           observation_date,
+           observation_time = time_observations_started,
+           duration_minutes,
+           all_observations_reported = all_species_reported) %>% 
+    filter(locality_id %in% EB_locations$locality_id,
+           observer_id %notin% observer_blacklist) %>% 
+    mutate(observation_date = ymd(observation_date),
+           observation_time = hms(observation_time),
+           duration_minutes = as.integer(duration_minutes)) %>% 
+    select(checklist_id, locality_id, observer_id, observation_date,
+           observation_time, duration_minutes)
+  
+  # Filter checklists to remove nocturnal lists (use code from eBird analysis)
+  EB_checklists <- EB_checklists %>% 
+    left_join(., select(EB_locations, locality_id, latitude, longitude), 
+              by = "locality_id") %>% 
+    mutate(
+      time_zone = tz_lookup_coords(lat = latitude, lon = longitude, 
+                                   method = "accurate"),
+      date_time_start = as_datetime(observation_date + observation_time),
+      date_time_end = date_time_start + minutes(duration_minutes),
+      date_time_start_utc = force_tzs(date_time_start, tzones = time_zone),
+      date_time_end_utc = date_time_start_utc + minutes(duration_minutes),
+      overnight = date(date_time_start) != date(date_time_end)) %>% 
+    filter(overnight == FALSE) %>% 
+    select(-overnight) %>% 
+    mutate(
+      altitude_start = (
+        select(., date = date_time_start_utc, lat = latitude, lon = longitude) %>%
+          getSunlightPosition(data = .) %>% 
+          pull(altitude)),
+      altitude_end = (
+        select(., date = date_time_end_utc, lat = latitude, lon = longitude) %>% 
+          getSunlightPosition(data = .) %>% 
+          pull(altitude)),
+      diurnal = altitude_start > -6 * pi / 180 & altitude_end > -6 * pi / 180) %>% 
+    filter(diurnal == TRUE) %>% 
+    select(-c(time_zone, contains("date_time"), contains("altitude"), diurnal),
+           latitude, longitude)
+  
+  # Filter observations to only those from filtered checklists
+  EB_observations <- EB_observations %>% 
+    select(checklist_id = sampling_event_identifier,
+           observation_id = global_unique_identifier,
+           scientific_name) %>% 
+    filter(checklist_id %in% EB_checklists$checklist_id)
+  
+  # Modify taxonomy
+  EB_taxonomy <- EB_taxonomy %>% 
+    filter(category == "species") %>% 
+    select(taxon_id = taxon_order, 
+           scientific_name,
+           common_name)
+  
+  # Join the four datasets together into an EBD-style dataset, cut redundant
+  # columns, and append a checklist richness column for later use
+  EB_all <- reduce(list(EB_observations, EB_taxonomy,
+                        EB_checklists, EB_locations),
+                   left_join) %>% 
+    arrange(observation_id) %>% 
+    select(observation_id, checklist_id, taxon_id, scientific_name,
+           common_name, locality_id, locality_name, latitude, longitude,
+           observer_id, observation_date, observation_time, duration_minutes) %>% 
+    group_by(checklist_id) %>% 
+    mutate(n_species = n_distinct(scientific_name)) %>% 
+    ungroup()
+  
+  # Create zero-filled dataset (for later use):
+  EB_zf <- EB_all %>% 
+    arrange(observation_id) %>% 
+    group_by(checklist_id) %>% 
+    mutate(obs_order = row_number()) %>% 
+    ungroup() %>% 
+    select(-c(observation_id, common_name, taxon_id)) %>% 
+    pivot_wider(names_from = scientific_name, values_from = obs_order, values_fill = NA) %>% 
+    pivot_longer(cols = unique(EB_all$scientific_name), names_to = "scientific_name", values_to = "obs_order") %>% 
+    left_join(., select(EB_taxonomy, taxon_id, scientific_name, common_name), by = "scientific_name") %>% 
+    arrange(checklist_id, taxon_id) %>% 
+    mutate(species_observed = !is.na(obs_order)) %>% 
+    select(obs_order, checklist_id, taxon_id, scientific_name, common_name,
+           locality_id, locality_name, latitude, longitude,
+           observer_id, observation_date, observation_time, duration_minutes,
+           n_species, species_observed)
+  
+  # Check zero-fill has worked (should both be TRUE)
+  n_distinct(EB_all$checklist_id) * n_distinct(EB_all$scientific_name) == nrow(EB_zf)
+  sum(EB_zf$species_observed) == nrow(EB_all)
+  
+  # Create reporting rate dataset
+  EB_rrs <- EB_zf %>% 
+    group_by(scientific_name) %>% 
+    summarise(reporting_rate = mean(species_observed))
+  EB_breeding_rrs <- EB_zf %>% 
+    filter(month(observation_date) %in% 5:8) %>% 
+        group_by(scientific_name) %>% 
+    summarise(reporting_rate = mean(species_observed))
+  
+  save(EB_all, file = "Data/EB_all.RData")
+  save(EB_locations, file = "Data/EB_locations.RData")
+  save(EB_observations, file = "Data/EB_observations.RData")
+  save(EB_taxonomy, file = "Data/EB_taxonomy.RData")
+  save(EB_checklists, file = "Data/EB_checklists.RData")
+  save(EB_zf, file = "Data/EB_zf.RData")
+  save(EB_rrs, file = "Data/EB_rrs.RData")
+  save(EB_breeding_rrs, file = "Data/EB_breeding_rrs.RData")
+  
+} else {
+  load("Data/EB_all.RData")
+  load("Data/EB_locations.RData")
+  load("Data/EB_observations.RData")
+  load("Data/EB_taxonomy.RData")
+  load("Data/EB_checklists.RData")
+  load("Data/EB_zf.RData")
+  load("Data/EB_rrs.RData")
+  load("Data/EB_breeding_rrs.RData")
+}
+```
+
+Look at the outputs:
+
+```{r}
+str(BT_all)
+str(BT_zf)
+str(BT_rrs)
+str(BT_breeding_rrs)
+
+str(EB_all)
+str(EB_zf)
+str(EB_rrs)
+str(EB_breeding_rrs)
+```
+
+Generate lists of species to model later:
+
+```{r}
+fullyear_common <- left_join(BT_rrs, EB_rrs, by = "scientific_name") %>% 
+  filter(reporting_rate.x > 0.01,
+         reporting_rate.y > 0.01) %>% 
+  pull(scientific_name)
+
+breeding_common <- left_join(BT_breeding_rrs, EB_breeding_rrs, by = "scientific_name") %>% 
+  filter(reporting_rate.x > 0.01,
+         reporting_rate.y > 0.01,
+         scientific_name %in% fullyear_common) %>% 
+  pull(scientific_name)
+
+save(fullyear_common, file = "Data/fullyear_common.RData")
+save(breeding_common, file = "Data/breeding_common.RData")
+
+paste(length(fullyear_common), "common species in full year dataset")
+paste(length(breeding_common), "common species in breeding season dataset")
+```
+
+Process eBird data again, with different filters - for supplementary analysis of incomplete:complete species preferences (following Johnston et al. 2023):
+
+```{r}
+if (!file.exists("Data/supp_ebd_relDec-2024_GBR.txt")) {
+  auk_ebd(file = EB_obs_path,
+          file_sampling = EB_sam_path) %>% 
+    auk_bbox(bbox = expand_bbox(st_bbox(Britain_sf))) %>% 
+    auk_year(year = 2021) %>% 
+    auk_exotic(exotic_code = c("", "N")) %>% 
+    auk_filter(
+      file = "Data/supp_ebd_relDec-2024_GBR.txt",
+      file_sampling = "Data/supp_ebd_sampling_relDec-2024_GBR.txt",
+      overwrite = TRUE)
+}
+```

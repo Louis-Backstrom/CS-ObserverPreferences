@@ -1,0 +1,219 @@
+---
+title: "03: Britain BirdTrack Analysis"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 12
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+---
+
+Load in relevant packages and datasets:
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(mgcv)
+library(DT)
+library(auk)
+
+load("Data/BT_all.RData")
+load("Data/BT_taxonomy.RData")
+load("Data/BT_rrs.RData")
+
+sessionInfo()
+```
+
+Calculate the expected proportion of first-on-checklist observations for each species, then determine the ratio between the observed first-on-checklist proportion and the expected first-on-checklist proportion for each species, and plot that against reporting rate:
+
+(confidence intervals estimated via non-parametric bootstrap)
+
+```{r}
+BT_all <- BT_all %>% 
+  select(checklist_id, scientific_name, observer_id, 
+         observation_date, observation_time, n_species)
+
+BT_nlists <- BT_all %>% 
+  pull(checklist_id) %>% 
+  n_distinct()
+
+BT_listids <- BT_all %>% 
+  pull(checklist_id) %>% 
+  unique()
+
+rebuild_bootstrap <- FALSE
+
+if (rebuild_bootstrap == TRUE | !file.exists("Data/BT_preference.RData")) {
+  for (i in 1:1000) {
+    BT_bs <- tibble(checklist_number = 1:BT_nlists) %>% 
+      mutate(checklist_id = sample(BT_listids, BT_nlists, replace = TRUE)) %>% 
+      left_join(., BT_all, by = "checklist_id", relationship = "many-to-many") %>% 
+      group_by(checklist_id, checklist_number) %>% 
+      mutate(first_observation = row_number() == 1) %>% 
+      group_by(scientific_name) %>% 
+      mutate(n_first = sum(first_observation),
+             n_expected = sum(1 / n_species)) %>% 
+      ungroup() %>% 
+      mutate(BT_preference = n_first / n_expected) %>% 
+      select(scientific_name, BT_preference) %>% 
+      distinct() %>% 
+      left_join(tibble(scientific_name = BT_rrs$scientific_name), .,
+                by = "scientific_name") %>% 
+      mutate(bs_i = i)
+    
+    if (i == 1){
+      BT_bs_all = BT_bs
+    } else {
+      BT_bs_all = bind_rows(BT_bs_all, BT_bs)
+    }
+  }
+  
+  BT_preference <- BT_bs_all %>% 
+    group_by(scientific_name) %>% 
+    summarise(BT_preference_est = median(BT_preference),
+              BT_preference_lci = if_else(
+                sum(is.na(BT_preference)) == 0,
+                quantile(BT_preference, 0.025, na.rm = TRUE), NA),
+              BT_preference_uci = if_else(
+                sum(is.na(BT_preference)) == 0,
+                quantile(BT_preference, 0.975, na.rm = TRUE), NA)) %>% 
+    rowwise() %>% 
+    mutate(
+      CI_calculable = as.logical(min(c(
+        !is.na(BT_preference_lci), !is.na(BT_preference_uci),
+        BT_preference_lci != BT_preference_uci), na.rm = TRUE)),
+      EST_calculable = as.logical(min(c(
+        BT_preference_est < Inf, BT_preference_est > 0, 
+        !is.na(BT_preference_est)), na.rm = TRUE)))
+  
+  save(BT_preference, file = "Data/BT_preference.RData")
+  
+  rm(BT_bs, BT_bs_all)
+  
+} else{
+  load("Data/BT_preference.RData")
+}
+
+plot1_data_preference <- left_join(BT_preference, BT_rrs, by = "scientific_name") %>% 
+  filter(CI_calculable == TRUE, EST_calculable ==  TRUE) 
+
+plot1_gam_model <- gam(data = plot1_data_preference,
+                       formula = log10(BT_preference_est) ~ 
+                         s(log10(reporting_rate), bs = "ds", k = 4),
+                       gamma = 1.4)
+
+plot1_data_gam <- tibble(reporting_rate = plot1_data_preference %>% 
+                           pull(reporting_rate) %>% 
+                           min() %>% 
+                           log10() %>% 
+                           seq(from = ., to = 0, by = 0.1) %>% 
+                           `^`(10, .)) 
+plot1_data_gam <- bind_cols(plot1_data_gam, predict(plot1_gam_model, plot1_data_gam, se.fit = TRUE)) %>% 
+  mutate(BT_preference_est = 10 ^ fit,
+         BT_preference_lci = 10 ^ (fit + qnorm(0.025) * se.fit),
+         BT_preference_uci = 10 ^ (fit + qnorm(0.975) * se.fit))
+
+plot1 <- ggplot() +
+  geom_ribbon(data = plot1_data_gam, alpha = 0.2,
+              mapping = aes(x = reporting_rate, 
+                            ymin = BT_preference_lci, ymax = BT_preference_uci)) +
+  geom_line(data = plot1_data_gam, size = 1, linetype = "solid",
+            mapping = aes(x = reporting_rate, y = BT_preference_est)) +
+  geom_linerange(data = plot1_data_preference %>% filter(BT_preference_lci == 0),
+                 linetype = "dotted", alpha = 0.2,
+                 mapping = aes(x = reporting_rate, 
+                               ymin = BT_preference_lci, ymax = BT_preference_est)) +
+  geom_linerange(data = plot1_data_preference %>% filter(BT_preference_lci == 0),
+                 linetype = "solid", alpha = 0.2,
+                 mapping = aes(x = reporting_rate,
+                               ymin = BT_preference_est, ymax = BT_preference_uci)) +
+  geom_linerange(data = plot1_data_preference %>% filter(BT_preference_lci > 0),
+                 linetype = "solid", alpha = 0.2,
+                 mapping = aes(x = reporting_rate,
+                               ymin = BT_preference_lci, ymax = BT_preference_uci)) +
+  geom_point(data = plot1_data_preference,
+             mapping = aes(x = reporting_rate, y = BT_preference_est, label = scientific_name)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  scale_x_log10(labels = scales::percent) +
+  scale_y_log10(breaks = c(1/10, 1/3, 1, 3, 10, 30), 
+                labels = c("1:10", "1:3", "1:1", "3:1", "10:1", "30:1")) + 
+  expand_limits(y = c(1/10)) +
+  labs(x = "Species Reporting Rate", 
+       y = "BirdTrack Preference Ratio") +
+  theme_classic()
+
+ggplotly(plot1)
+
+ggsave(plot = plot1, filename = "BT_preference.png", width = 9, height = 6)
+```
+
+![](BT_preference.png)
+
+Table of species information:
+
+```{r}
+left_join(BT_preference, BT_rrs, by = "scientific_name") %>% 
+  mutate(across(is.numeric, round, digits = 4)) %>% 
+  select(scientific_name, reporting_rate, BT_preference_est,
+         BT_preference_lci, BT_preference_uci, 
+         EST_calculable, CI_calculable) %>% 
+  rename("Scientific Name" = scientific_name, 
+         "Reporting Rate" = reporting_rate,
+         "BirdTrack Preference Ratio" = BT_preference_est,
+         "LCI" = BT_preference_lci,
+         "UCI" = BT_preference_uci,
+         "Proper CI?" = CI_calculable,
+         "Proper Estimate?" = EST_calculable) %>% 
+  datatable(filter = "top")
+```
+
+Explore the effect of first-of-year observations on BirdTrack preference ratio:
+
+```{r}
+BT_yeareffect <- BT_all %>%
+  group_by(checklist_id) %>% 
+  mutate(first_observation = row_number() == 1) %>% 
+  ungroup() %>% 
+  arrange(observation_date, observation_time) %>% 
+  group_by(observer_id, scientific_name) %>% 
+  mutate(first_of_year = row_number() == 1) %>% 
+  group_by(scientific_name, first_of_year) %>% 
+  mutate(n_obs = n(), n_first = sum(first_observation),
+         n_expected = sum(1 / n_species)) %>% 
+  ungroup() %>% 
+  mutate(first_prop = n_first / n_obs,
+         expected_prop = n_expected / n_obs,
+         prop_ratio = first_prop / expected_prop) %>% 
+  select(scientific_name, first_of_year, BT_preference = prop_ratio) %>% 
+  distinct() %>% 
+  pivot_wider(names_from = first_of_year, names_prefix = "first_",
+              values_from = BT_preference) %>% 
+  left_join(BT_rrs, by = "scientific_name") %>% 
+  filter(reporting_rate > 0.01)
+
+plot2 <- ggplot(BT_yeareffect) +
+  geom_point(aes(x = first_TRUE, y = first_FALSE, label = scientific_name)) +
+  geom_abline(linetype = "dotted") +
+  coord_equal() +
+  theme_classic() +
+  labs(x = "BirdTrack Preference Ratio: First of Year Observations", 
+       y = "BirdTrack Preference Ratio: NOT First of Year Observations") +
+  scale_x_log10(breaks = c(1/3, 1, 3), 
+                labels = c("1:3", "1:1", "3:1"),
+                limits = c(1/3, 3)) + 
+  scale_y_log10(breaks = c(1/3, 1, 3), 
+                labels = c("1:3", "1:1", "3:1"),
+                limits = c(1/3, 3))
+
+ggplotly(plot2)
+ggsave(plot = plot2, filename = "YearOrderPlot.png", height = 8, width = 9)
+```
+
+```{r}
+cor.test(formula = ~ log(first_TRUE) + log(first_FALSE), data = BT_yeareffect)
+```

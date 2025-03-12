@@ -1,0 +1,27 @@
+---
+title: "06b: Britain Occupancy Modelling - Occupancy Difference (Linear) Plots"
+format: 
+  html:
+    page-layout: full
+    fig-width: 12
+    fig-height: 7
+    toc: true
+    code-fold: true
+    code-summary: "Show code:"
+execute: 
+  warning: false
+embed-resources: true
+lightbox: true
+---
+
+```{r, echo = FALSE}
+load("Data/EB_occupancy_diffplots_linear.RData")
+sessionInfo()
+```
+
+```{r, echo = FALSE}
+#| lightbox: 
+#|   group: occupancy_diffplots_linear
+invisible(capture.output(occupancy_diffplots_linear))
+```
+

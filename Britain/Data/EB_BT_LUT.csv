@@ -1,0 +1,438 @@
+EB_scientific_name,EB_reporting_rate,BT_replacement_name,TAX,SEN,EXO,VAG,EB_replacement_name,BT_scientific_name,BT_reporting_rate
+,,,TRUE,,,,,Acanthis cabaret,0.033203558
+Acanthis flammea,0.028680733,,,,,,,Acanthis flammea,5.22E-04
+,,,TRUE,,,,,Acanthis hornemanni,1.58E-05
+,,,TRUE,TRUE,,,Astur gentilis,Accipiter gentilis,0.003196911
+Accipiter nisus,0.082904697,,,,,,,Accipiter nisus,0.078023613
+Acrocephalus agricola,5.83E-06,,,,,TRUE,,,
+Acrocephalus arundinaceus,4.20E-04,,,,,,,Acrocephalus arundinaceus,1.90E-04
+Acrocephalus dumetorum,1.52E-04,,,,,,,Acrocephalus dumetorum,1.27E-04
+,,,,,,TRUE,,Acrocephalus paludicola,1.58E-05
+Acrocephalus palustris,8.75E-05,,,,,,,Acrocephalus palustris,1.11E-04
+Acrocephalus schoenobaenus,0.055192041,,,,,,,Acrocephalus schoenobaenus,0.067150951
+Acrocephalus scirpaceus,0.060242369,,,,,,,Acrocephalus scirpaceus,0.06438135
+Actitis hypoleucos,0.029893745,,,,,,,Actitis hypoleucos,0.033377647
+Actitis macularius,8.75E-05,,,,,TRUE,,,
+Aegithalos caudatus,0.251303405,,,,,,,Aegithalos caudatus,0.255088152
+Aix galericulata,0.019314882,,,,,,,Aix galericulata,0.011363277
+,,,,,TRUE,,,Aix sponsa,1.74E-04
+Alauda arvensis,0.162374471,,,,,,,Alauda arvensis,0.185215079
+Alca torda,0.0227673,,,,,,,Alca torda,0.016443516
+Alcedo atthis,0.041003301,,,,,,,Alcedo atthis,0.053793562
+Alectoris rufa,0.034063473,,,,,,,Alectoris rufa,0.050153515
+Alle alle,0.001032226,,,,,,,Alle alle,5.38E-04
+Alopochen aegyptiaca,0.069264145,,,,,,,Alopochen aegyptiaca,0.05892128
+Anarhynchus alexandrinus,7.00E-05,Charadrius alexandrinus,TRUE,,,,,,
+Anas acuta,0.026890374,,,,,,,Anas acuta,0.023248821
+,,,,,TRUE,,,Anas bahamensis,1.58E-05
+,,,TRUE,,,,,Anas carolinensis,1.74E-04
+Anas crecca,0.162421125,,,,,,,Anas crecca,0.167062324
+,,,,,TRUE,,,Anas flavirostris,1.58E-05
+Anas platyrhynchos,0.443758237,,,,,,,Anas platyrhynchos,0.441885861
+Anser albifrons,0.00534775,,,,,,,Anser albifrons,0.004019878
+Anser anser,0.200700981,,,,,,,Anser anser,0.203146267
+Anser brachyrhynchus,0.026651271,,,,,,,Anser brachyrhynchus,0.027205394
+Anser caerulescens,9.33E-05,,,,,,,Anser caerulescens,0.001345235
+,,,,,TRUE,,,Anser canagicus,3.17E-05
+,,,,,TRUE,,,Anser cygnoides,4.11E-04
+,,,,,TRUE,TRUE,,Anser erythropus,1.58E-05
+Anser fabalis,3.15E-04,,,,,,,Anser fabalis,1.58E-04
+,,,,,TRUE,,,Anser indicus,9.81E-04
+Anser rossii,1.17E-05,,,,,,,Anser rossii,2.85E-04
+Anser serrirostris,7.81E-04,,,,,,,Anser serrirostris,4.91E-04
+Anthus campestris,5.25E-05,,,,,TRUE,,,
+Anthus cervinus,2.33E-05,,,,,,,Anthus cervinus,3.17E-05
+Anthus hodgsoni,1.63E-04,,,,,TRUE,,,
+Anthus petrosus,0.031141747,,,,,,,Anthus petrosus,0.023581173
+Anthus pratensis,0.163814922,,,,,,,Anthus pratensis,0.158057165
+Anthus richardi,1.17E-04,,,,,,,Anthus richardi,6.33E-05
+Anthus rubescens,4.67E-05,,,,,,,Anthus rubescens,3.17E-05
+Anthus spinoletta,0.00280509,,,,,,,Anthus spinoletta,0.001914981
+Anthus trivialis,0.007073959,,,,,,,Anthus trivialis,0.006805305
+Apus affinis,5.83E-06,,,,,TRUE,,,
+Apus apus,0.098114,,,,,,,Apus apus,0.090273162
+Apus pacificus,3.50E-05,,,,,TRUE,,,
+,,,,TRUE,,,,Aquila chrysaetos,0.00110784
+,,,,,TRUE,,,Ara macao,1.58E-05
+Ardea alba,0.030016212,,,,,,,Ardea alba,0.025844333
+Ardea cinerea,0.248410838,,,,,,,Ardea cinerea,0.244896021
+Ardea ibis,0.006199191,Bubulcus ibis,TRUE,,,,,,
+Ardea purpurea,1.81E-04,,,,,,,Ardea purpurea,2.06E-04
+Ardenna gravis,6.41E-05,,,,,,,Ardenna gravis,9.50E-05
+Ardenna grisea,0.001463779,,,,,,,Ardenna grisea,0.00110784
+Ardeola ralloides,2.33E-05,,,,,TRUE,,,
+Arenaria interpres,0.044933926,,,,,,,Arenaria interpres,0.035450891
+Asio flammeus,0.003819821,,,,,,,Asio flammeus,0.003386826
+,,,,TRUE,,,,Asio otus,4.91E-04
+Astur gentilis,4.90E-04,Accipiter gentilis,TRUE,TRUE,,,,,
+Athene noctua,0.008135344,,,,,,,Athene noctua,0.006172253
+Aythya affinis,1.63E-04,,,,,,,Aythya affinis,9.50E-05
+Aythya collaris,0.002011967,,,,,,,Aythya collaris,0.001250277
+Aythya ferina,0.069654875,,,,,,,Aythya ferina,0.05597759
+Aythya fuligula,0.199184716,,,,,,,Aythya fuligula,0.196182699
+Aythya marila,0.0052836,,,,,,,Aythya marila,0.004146488
+,,,,,TRUE,,,Aythya novaeseelandiae,4.75E-05
+Aythya nyroca,2.86E-04,,,,,,,Aythya nyroca,1.27E-04
+Bombycilla garrulus,4.08E-05,,,,,,,Bombycilla garrulus,3.17E-05
+Botaurus stellaris,0.008572728,,,,,,,Botaurus stellaris,0.008261324
+Branta bernicla,0.028167536,,,,,,,Branta bernicla,0.022125154
+Branta canadensis,0.261351575,,,,,,,Branta canadensis,0.236318172
+Branta hutchinsii,1.05E-04,,,,,,,Branta hutchinsii,7.91E-05
+Branta leucopsis,0.012771616,,,,,,,Branta leucopsis,0.012850948
+Branta ruficollis,2.92E-05,,,,,,,Branta ruficollis,7.91E-05
+Bubo scandiacus,5.83E-06,,,,,TRUE,,,
+,,,TRUE,,,,Ardea ibis,Bubulcus ibis,0.004969455
+Bucephala albeola,3.50E-05,,,,,,,Bucephala albeola,1.58E-05
+Bucephala clangula,0.031235056,,,,,,,Bucephala clangula,0.037729877
+Burhinus oedicnemus,5.83E-06,,,,,,,Burhinus oedicnemus,0.001471845
+Buteo buteo,0.240322148,,,,,,,Buteo buteo,0.263792612
+Buteo lagopus,1.17E-05,,,,,,,Buteo lagopus,9.50E-05
+,,,,,TRUE,,,Cairina moschata,0.001361061
+Calandrella brachydactyla,2.86E-04,,,,,,,Calandrella brachydactyla,9.50E-05
+Calcarius lapponicus,4.78E-04,,,,,,,Calcarius lapponicus,3.96E-04
+Calidris alba,0.017979402,,,,,,,Calidris alba,0.013990441
+Calidris alpina,0.060901361,,,,,,,Calidris alpina,0.052669895
+Calidris bairdii,5.83E-05,,,,,,,Calidris bairdii,1.58E-05
+Calidris canutus,0.014486161,,,,,,,Calidris canutus,0.014196183
+Calidris falcinellus,3.50E-05,,,,,TRUE,,,
+Calidris ferruginea,0.003300792,,,,,,,Calidris ferruginea,0.00238977
+Calidris fuscicollis,3.62E-04,,,,,,,Calidris fuscicollis,1.11E-04
+Calidris maritima,0.005458553,,,,,,,Calidris maritima,0.005570854
+Calidris mauri,3.62E-04,,,,,,,Calidris mauri,1.74E-04
+Calidris melanotos,0.002105275,,,,,,,Calidris melanotos,0.001503498
+Calidris minuta,0.004922029,,,,,,,Calidris minuta,0.00422562
+Calidris pugnax,0.020597875,,,,,,,Calidris pugnax,0.018532586
+Calidris pusilla,7.58E-05,,,,,,,Calidris pusilla,4.75E-05
+Calidris ruficollis,1.81E-04,,,,,,,Calidris ruficollis,4.75E-05
+Calidris subminuta,7.52E-04,,,,,,,Calidris subminuta,2.85E-04
+Calidris subruficollis,1.22E-04,,,,,,,Calidris subruficollis,4.75E-05
+Calidris temminckii,4.84E-04,,,,,,,Calidris temminckii,5.22E-04
+,,,,,TRUE,,,Callonetta leucophrys,1.58E-05
+Calonectris borealis,2.92E-05,,,,,,,Calonectris borealis,1.58E-05
+Caprimulgus europaeus,8.75E-04,,,,,,,Caprimulgus europaeus,4.59E-04
+Carduelis carduelis,0.479425452,,,,,,,Carduelis carduelis,0.470167442
+Carpodacus erythrinus,3.09E-04,,,,,,,Carpodacus erythrinus,2.37E-04
+,,,TRUE,,,,Cecropis rufula,Cecropis daurica,4.75E-05
+Cecropis rufula,1.40E-04,Cecropis daurica,TRUE,,,,,,
+Cepphus grylle,0.006286667,,,,,,,Cepphus grylle,0.005475897
+Cercotrichas galactotes,5.25E-05,,,,,,,Cercotrichas galactotes,1.58E-05
+Certhia familiaris,0.056912418,,,,,,,Certhia familiaris,0.07210458
+Cettia cetti,0.086887808,,,,,,,Cettia cetti,0.091301871
+,,,TRUE,,,,Anarhynchus alexandrinus,Charadrius alexandrinus,4.75E-05
+,,,TRUE,,,,Thinornis dubius,Charadrius dubius,0.024008483
+Charadrius hiaticula,0.043143567,,,,,,,Charadrius hiaticula,0.040483651
+,,,TRUE,TRUE,,,Eudromias morinellus,Charadrius morinellus,3.17E-04
+Chlidonias hybrida,1.75E-04,,,,,,,Chlidonias hybrida,7.91E-05
+Chlidonias leucopterus,4.08E-05,,,,,TRUE,,,
+Chlidonias niger,0.001714546,,,,,,,Chlidonias niger,0.001487671
+Chloris chloris,0.198770659,,,,,,,Chloris chloris,0.206596398
+Chroicocephalus philadelphia,5.42E-04,,,,,,,Chroicocephalus philadelphia,4.27E-04
+Chroicocephalus ridibundus,0.469079861,,,,,,,Chroicocephalus ridibundus,0.426708448
+Chrysolophus pictus,1.17E-05,,,,,,,Chrysolophus pictus,3.17E-05
+,,,,,TRUE,,,Ciconia ciconia,8.39E-04
+Ciconia nigra,5.72E-04,,,,,,,Ciconia nigra,4.91E-04
+Cinclus cinclus,0.01011232,,,,,,,Cinclus cinclus,0.018026145
+Circus aeruginosus,0.053932375,,,,,,,Circus aeruginosus,0.048729149
+Circus cyaneus,0.002461014,,,,,,,Circus cyaneus,0.005776596
+Circus macrourus,1.17E-05,,,,,TRUE,,,
+,,,,TRUE,,,,Circus pygargus,1.58E-05
+Clangula hyemalis,0.004542963,,,,,,,Clangula hyemalis,0.003972399
+Coccothraustes coccothraustes,0.002011967,,,,,,,Coccothraustes coccothraustes,0.001297756
+Coloeus monedula,0.462355809,,,,,,,Coloeus monedula,0.488953249
+Columba livia,0.251303405,,,,,,,Columba livia,0.199063084
+Columba oenas,0.176207472,,,,,,,Columba oenas,0.158452822
+Columba palumbus,0.742555723,,,,,,,Columba palumbus,0.75211281
+Coracias garrulus,5.60E-04,,,,,,,Coracias garrulus,2.53E-04
+Corvus corax,0.066721485,,,,,,,Corvus corax,0.072452759
+Corvus cornix,0.016632259,,,,,,,Corvus cornix,0.010698572
+Corvus corone,0.656443542,,,,,,,Corvus corone,0.66272592
+Corvus frugilegus,0.184651901,,,,,,,Corvus frugilegus,0.192748394
+Coturnix coturnix,5.95E-04,,,,,,,Coturnix coturnix,5.06E-04
+Crex crex,5.83E-06,,,,,,,Crex crex,7.75E-04
+Cuculus canorus,0.025350782,,,,,,,Cuculus canorus,0.030513088
+Curruca cantillans,7.00E-05,,,,,TRUE,,,
+Curruca communis,0.102260401,,,,,,,Curruca communis,0.108647485
+Curruca curruca,0.019256564,,,,,,,Curruca curruca,0.01881746
+Curruca iberiae,4.67E-05,,,,,TRUE,,,
+Curruca melanocephala,5.83E-06,,,,,TRUE,,,
+Curruca nisoria,3.15E-04,,,,,,,Curruca nisoria,1.42E-04
+,,,,TRUE,,,,Curruca undata,0.006093122
+Cyanistes caeruleus,0.580367869,,,,,,,Cyanistes caeruleus,0.583942646
+,,,,,TRUE,,,Cygnus atratus,0.004035704
+Cygnus columbianus,0.001405461,,,,,,,Cygnus columbianus,8.55E-04
+Cygnus cygnus,0.011243687,,,,,,,Cygnus cygnus,0.014686798
+Cygnus olor,0.275901886,,,,,,,Cygnus olor,0.275013452
+Delichon urbicum,0.085861413,,,,,,,Delichon urbicum,0.087107904
+Dendrocopos major,0.182616607,,,,,,,Dendrocopos major,0.181163549
+Dryobates minor,0.001317984,,,,,,,Dryobates minor,0.001060361
+Egretta garzetta,0.152017215,,,,,,,Egretta garzetta,0.153119362
+Emberiza calandra,0.012013483,,,,,,,Emberiza calandra,0.010983446
+Emberiza cirlus,5.42E-04,,,,,,,Emberiza cirlus,5.86E-04
+Emberiza citrinella,0.066307429,,,,,,,Emberiza citrinella,0.088563922
+Emberiza hortulana,2.33E-05,,,,,TRUE,,,
+Emberiza pusilla,9.04E-04,,,,,,,Emberiza pusilla,3.96E-04
+Emberiza rustica,4.02E-04,,,,,,,Emberiza rustica,2.37E-04
+Emberiza schoeniclus,0.146319559,,,,,,,Emberiza schoeniclus,0.17241161
+Eremophila alpestris,8.81E-04,,,,,,,Eremophila alpestris,4.11E-04
+Erithacus rubecula,0.623657231,,,,,,,Erithacus rubecula,0.618871269
+Eudromias morinellus,3.44E-04,Charadrius morinellus,TRUE,TRUE,,,,,
+Falco columbarius,0.005091151,,,,,,,Falco columbarius,0.004684582
+Falco peregrinus,0.020632866,,,,,,,Falco peregrinus,0.034580445
+Falco subbuteo,0.017244597,,,,,,,Falco subbuteo,0.015319849
+Falco tinnunculus,0.15353348,,,,,,,Falco tinnunculus,0.148798785
+Falco vespertinus,2.57E-04,,,,,,,Falco vespertinus,1.27E-04
+Ficedula albicilla,1.34E-04,,,,,,,Ficedula albicilla,6.33E-05
+Ficedula hypoleuca,0.004385505,,,,,,,Ficedula hypoleuca,0.004146488
+Ficedula parva,3.79E-04,,,,,,,Ficedula parva,7.91E-05
+Fratercula arctica,0.007103118,,,,,,,Fratercula arctica,0.004747887
+Fringilla coelebs,0.368545669,,,,,,,Fringilla coelebs,0.405738613
+Fringilla montifringilla,0.013313972,,,,,,,Fringilla montifringilla,0.01220207
+Fulica atra,0.250825198,,,,,,,Fulica atra,0.239736651
+Fulmarus glacialis,0.027666002,,,,,,,Fulmarus glacialis,0.018912417
+Gallinago gallinago,0.069958128,,,,,,,Gallinago gallinago,0.068986801
+Gallinula chloropus,0.30719526,,,,,,,Gallinula chloropus,0.303564081
+,,,,,TRUE,,,Gallus gallus,3.17E-05
+Garrulus glandarius,0.161149795,,,,,,,Garrulus glandarius,0.156616972
+Gavia adamsii,2.45E-04,,,,,,,Gavia adamsii,1.74E-04
+Gavia arctica,0.00202363,,,,,,,Gavia arctica,0.001883329
+Gavia immer,0.008607719,,,,,,,Gavia immer,0.005982338
+Gavia pacifica,1.11E-04,,,,,,,Gavia pacifica,6.33E-05
+Gavia stellata,0.022639001,,,,,,,Gavia stellata,0.018152755
+Gelochelidon nilotica,1.17E-05,,,,,TRUE,,,
+Glareola pratincola,3.21E-04,,,,,,,Glareola pratincola,1.11E-04
+Grus grus,0.001627069,,,,,,,Grus grus,0.002927864
+Gulosus aristotelis,0.03167244,,,,,,,Gulosus aristotelis,0.023264647
+Haematopus ostralegus,0.160438317,,,,,,,Haematopus ostralegus,0.167331371
+Haliaeetus albicilla,6.94E-04,,,,,,,Haliaeetus albicilla,0.002310638
+Himantopus himantopus,1.75E-05,,,,,,,Himantopus himantopus,3.01E-04
+Hippolais icterina,1.22E-04,,,,,,,Hippolais icterina,6.33E-05
+Hippolais polyglotta,1.22E-04,,,,,,,Hippolais polyglotta,1.27E-04
+Hirundo rustica,0.18328143,,,,,,,Hirundo rustica,0.19092837
+Hydrobates leucorhous,1.92E-04,,,,,,,Hydrobates leucorhous,6.33E-05
+Hydrobates pelagicus,2.22E-04,,,,,,,Hydrobates pelagicus,2.22E-04
+Hydrocoloeus minutus,0.006228349,,,,,,,Hydrocoloeus minutus,0.003909094
+Hydroprogne caspia,2.04E-04,,,,,,,Hydroprogne caspia,3.17E-05
+,,,,,,TRUE,,Ichthyaetus ichthyaetus,1.58E-05
+Ichthyaetus melanocephalus,0.027246113,,,,,,,Ichthyaetus melanocephalus,0.019260596
+Iduna caligata,1.75E-05,,,,,TRUE,,,
+Iduna rama,5.83E-06,,,,,TRUE,,,
+Ixoreus naevius,3.50E-05,,,,,TRUE,,,
+Junco hyemalis,1.75E-05,,,,,TRUE,,,
+Jynx torquilla,7.70E-04,,,,,,,Jynx torquilla,2.85E-04
+Lagopus lagopus,0.00600091,,,,,,,Lagopus lagopus,0.00533346
+Lagopus muta,9.33E-05,,,,,,,Lagopus muta,7.91E-05
+Lanius collurio,5.89E-04,,,,,,,Lanius collurio,3.32E-04
+Lanius cristatus,4.67E-05,,,,,TRUE,,,
+Lanius excubitor,4.55E-04,,,,,,,Lanius excubitor,3.80E-04
+Lanius minor,6.41E-05,,,,,,,Lanius minor,3.17E-05
+Lanius senator,4.84E-04,,,,,,,Lanius senator,2.53E-04
+Larus argentatus,0.399232537,,,,,,,Larus argentatus,0.346295065
+Larus cachinnans,0.003959784,,,,,,,Larus cachinnans,0.001677587
+Larus canus,0.144033498,,,,,,,Larus canus,0.132070395
+Larus delawarensis,5.83E-05,,,,,,,Larus delawarensis,7.91E-05
+Larus fuscus,0.25578805,,,,,,,Larus fuscus,0.258791504
+Larus glaucoides,0.002344379,,,,,,,Larus glaucoides,0.00183585
+Larus hyperboreus,7.64E-04,,,,,,,Larus hyperboreus,4.91E-04
+Larus marinus,0.128101053,,,,,,,Larus marinus,0.105118222
+Larus michahellis,0.008689364,,,,,,,Larus michahellis,0.005539202
+Larus smithsonianus,2.33E-05,,,,,,,Larus smithsonianus,4.75E-05
+Leucophaeus atricilla,5.83E-06,,,,,TRUE,,,
+Leucophaeus pipixcan,1.40E-04,,,,,,,Leucophaeus pipixcan,6.33E-05
+Limnodromus scolopaceus,2.97E-04,,,,,,,Limnodromus scolopaceus,2.22E-04
+Limosa lapponica,0.0192449,,,,,,,Limosa lapponica,0.019197291
+Limosa limosa,0.052468596,,,,,,,Limosa limosa,0.048080271
+Linaria cannabina,0.165931861,,,,,,,Linaria cannabina,0.167742854
+Linaria flavirostris,0.00463044,,,,,,,Linaria flavirostris,0.003006995
+Locustella fluviatilis,6.76E-04,,,,,,,Locustella fluviatilis,1.74E-04
+,,,,TRUE,,,,Locustella luscinioides,3.17E-04
+Locustella naevia,0.007009809,,,,,,,Locustella naevia,0.008008103
+Lophodytes cucullatus,5.83E-05,,,,,,,Lophodytes cucullatus,9.50E-05
+Lophophanes cristatus,6.59E-04,,,,,,,Lophophanes cristatus,5.38E-04
+Loxia curvirostra,0.007237249,,,,,,,Loxia curvirostra,0.007754882
+Loxia leucoptera,4.67E-05,,,,,,,Loxia leucoptera,1.58E-05
+Loxia pytyopsittacus,1.17E-05,,,,,,,Loxia pytyopsittacus,1.58E-05
+Loxia scotica,1.34E-04,,,,,,,Loxia scotica,7.91E-05
+Lullula arborea,0.006199191,,,,,,,Lullula arborea,0.007026873
+Luscinia luscinia,5.83E-06,,,,,TRUE,,,
+Luscinia megarhynchos,0.004525467,,,,,,,Luscinia megarhynchos,0.004035704
+Luscinia svecica,3.03E-04,,,,,,,Luscinia svecica,2.06E-04
+Lymnocryptes minimus,0.003959784,,,,,,,Lymnocryptes minimus,0.003450131
+,,,,TRUE,,,,Lyrurus tetrix,8.86E-04
+Mareca americana,5.13E-04,,,,,,,Mareca americana,3.96E-04
+Mareca penelope,0.112880087,,,,,,,Mareca penelope,0.109248884
+,,,,,TRUE,,,Mareca sibilatrix,3.17E-05
+Mareca strepera,0.146255409,,,,,,,Mareca strepera,0.148023296
+,,,,,TRUE,,,Marmaronetta angustirostris,3.17E-05
+Megaceryle alcyon,2.57E-04,,,,,,,Megaceryle alcyon,1.42E-04
+Melanitta americana,2.92E-05,,,,,,,Melanitta americana,1.58E-05
+Melanitta deglandi,9.33E-05,,,,,,,Melanitta deglandi,6.33E-05
+Melanitta fusca,0.003166661,,,,,,,Melanitta fusca,0.001883329
+Melanitta nigra,0.017705308,,,,,,,Melanitta nigra,0.012993385
+Melanitta perspicillata,5.25E-04,,,,,,,Melanitta perspicillata,3.32E-04
+Melanocorypha calandra,5.83E-06,,,,,TRUE,,,
+,,,,,TRUE,,,Melopsittacus undulatus,1.58E-05
+Mergellus albellus,0.001947817,,,,,,,Mergellus albellus,0.001550976
+Mergus merganser,0.035801346,,,,,,,Mergus merganser,0.050485867
+Mergus serrator,0.019011629,,,,,,,Mergus serrator,0.014750103
+Merops apiaster,1.17E-05,,,,,,,Merops apiaster,1.58E-05
+Milvus migrans,1.75E-05,,,,,,,Milvus migrans,3.17E-05
+Milvus milvus,0.09348356,,,,,,,Milvus milvus,0.089181148
+Mimus polyglottos,4.37E-04,,,,,,,Mimus polyglottos,6.33E-05
+Morus bassanus,0.045587086,,,,,,,Morus bassanus,0.032507201
+Motacilla alba,0.269317797,,,,,,,Motacilla alba,0.250292786
+Motacilla cinerea,0.083622007,,,,,,,Motacilla cinerea,0.084211692
+Motacilla citreola,9.91E-05,,,,,,,Motacilla citreola,3.17E-05
+Motacilla flava,0.027689329,,,,,,,Motacilla flava,0.023486215
+Motacilla tschutschensis,9.33E-05,,,,,,,Motacilla tschutschensis,3.17E-05
+Muscicapa striata,0.01050305,,,,,,,Muscicapa striata,0.010413699
+,,,,,TRUE,,,Netta peposaca,1.58E-05
+Netta rufina,0.007330557,,,,,,,Netta rufina,0.003307695
+Numenius arquata,0.116425814,,,,,,,Numenius arquata,0.114835565
+Numenius phaeopus,0.017337905,,,,,,,Numenius phaeopus,0.014370272
+,,,,,TRUE,,,Numida meleagris,3.64E-04
+Nycticorax nycticorax,7.58E-05,,,,,,,Nycticorax nycticorax,4.75E-05
+Oceanites oceanicus,5.83E-06,,,,,TRUE,,,
+Oenanthe deserti,9.91E-05,,,,,,,Oenanthe deserti,3.17E-05
+Oenanthe isabellina,6.41E-05,,,,,,,Oenanthe isabellina,4.75E-05
+Oenanthe oenanthe,0.032623022,,,,,,,Oenanthe oenanthe,0.029357769
+Oenanthe pleschanka,1.40E-04,,,,,,,Oenanthe pleschanka,3.17E-05
+Oriolus oriolus,1.57E-04,,,,,,,Oriolus oriolus,1.74E-04
+,,,,,,TRUE,,Otis tarda,7.91E-05
+Oxyura jamaicensis,5.25E-05,,,,,,,Oxyura jamaicensis,9.50E-05
+Pandion haliaetus,0.005575189,,,,,,,Pandion haliaetus,0.005950685
+Panurus biarmicus,0.010660508,,,,,,,Panurus biarmicus,0.010920141
+,,,,,TRUE,,,Parabuteo unicinctus,7.91E-05
+Parus major,0.479250499,,,,,,,Parus major,0.476608742
+Passer domesticus,0.302080782,,,,,,,Passer domesticus,0.302139714
+Passer montanus,0.026254709,,,,,,,Passer montanus,0.028281581
+Pastor roseus,7.17E-04,,,,,,,Pastor roseus,3.48E-04
+,,,,,TRUE,,,Pavo cristatus,2.37E-04
+Perdix perdix,0.009984021,,,,,,,Perdix perdix,0.013452347
+Periparus ater,0.151574,,,,,,,Periparus ater,0.16486247
+Pernis apivorus,9.33E-05,,,,,,,Pernis apivorus,2.69E-04
+Phalacrocorax carbo,0.283255771,,,,,,,Phalacrocorax carbo,0.252002026
+Phalaropus fulicarius,0.001061385,,,,,,,Phalaropus fulicarius,5.06E-04
+Phalaropus lobatus,2.22E-04,,,,,,,Phalaropus lobatus,3.48E-04
+Phalaropus tricolor,2.27E-04,,,,,,,Phalaropus tricolor,3.17E-05
+Phasianus colchicus,0.215886957,,,,,,,Phasianus colchicus,0.25394866
+Pheucticus ludovicianus,2.92E-05,,,,,TRUE,,,
+Phoenicurus ochruros,0.003160829,,,,,,,Phoenicurus ochruros,0.001756718
+Phoenicurus phoenicurus,0.010100657,,,,,,,Phoenicurus phoenicurus,0.009733169
+Phylloscopus bonelli,1.52E-04,,,,,,,Phylloscopus bonelli,1.58E-05
+Phylloscopus borealis,1.11E-04,,,,,,,Phylloscopus borealis,6.33E-05
+Phylloscopus collybita,0.268262244,,,,,,,Phylloscopus collybita,0.29178932
+Phylloscopus fuscatus,5.54E-04,,,,,,,Phylloscopus fuscatus,0.001313582
+Phylloscopus griseolus,5.83E-06,,,,,TRUE,,,
+Phylloscopus humei,1.28E-04,,,,,,,Phylloscopus humei,4.75E-05
+Phylloscopus ibericus,1.22E-04,,,,,,,Phylloscopus ibericus,3.17E-05
+Phylloscopus inornatus,0.001125535,,,,,,,Phylloscopus inornatus,3.17E-04
+Phylloscopus nitidus,2.68E-04,,,,,,,Phylloscopus nitidus,1.58E-04
+Phylloscopus plumbeitarsus,1.57E-04,,,,,,,Phylloscopus plumbeitarsus,4.75E-05
+Phylloscopus proregulus,7.58E-05,,,,,,,Phylloscopus proregulus,1.58E-05
+Phylloscopus schwarzi,9.91E-05,,,,,TRUE,,,
+Phylloscopus sibilatrix,0.001732041,,,,,,,Phylloscopus sibilatrix,0.001978286
+Phylloscopus trochiloides,5.83E-05,,,,,,,Phylloscopus trochiloides,1.58E-05
+Phylloscopus trochilus,0.084298494,,,,,,,Phylloscopus trochilus,0.105545532
+Pica pica,0.567118047,,,,,,,Pica pica,0.517852056
+Picus viridis,0.113929809,,,,,,,Picus viridis,0.126800241
+Platalea leucorodia,0.010573031,,,,,,,Platalea leucorodia,0.008324629
+Plectrophenax nivalis,0.003563222,,,,,,,Plectrophenax nivalis,0.002057418
+Plegadis falcinellus,0.002898399,,,,,,,Plegadis falcinellus,0.001392714
+Pluvialis apricaria,0.02567153,,,,,,,Pluvialis apricaria,0.022710727
+Pluvialis dominica,2.80E-04,,,,,,,Pluvialis dominica,1.58E-04
+Pluvialis fulva,8.63E-04,,,,,,,Pluvialis fulva,6.96E-04
+Pluvialis squatarola,0.018486768,,,,,,,Pluvialis squatarola,0.017852056
+Podiceps auritus,0.002875071,,,,,,,Podiceps auritus,0.002769601
+Podiceps cristatus,0.142826318,,,,,,,Podiceps cristatus,0.131848827
+Podiceps grisegena,0.001242171,,,,,,,Podiceps grisegena,9.97E-04
+Podiceps nigricollis,0.002595146,,,,,,,Podiceps nigricollis,0.002801253
+Podilymbus podiceps,7.58E-05,,,,,,,Podilymbus podiceps,1.58E-05
+Poecile montanus,0.004589617,,,,,,,Poecile montanus,0.008166366
+Poecile palustris,0.017110466,,,,,,,Poecile palustris,0.023043079
+Porzana porzana,8.16E-05,,,,,,,Porzana porzana,3.17E-05
+Prunella modularis,0.393651516,,,,,,,Prunella modularis,0.398949134
+,,,,,TRUE,,,Psittacara holochlorus,3.17E-05
+,,,,,TRUE,,,Psittacula eupatria,1.58E-05
+Psittacula krameri,0.08330709,,,,,,,Psittacula krameri,0.041559839
+Pterodroma feae,4.67E-05,,,,,TRUE,,,
+Pterodroma mollis,1.17E-05,,,,,,,Pterodroma mollis,3.17E-05
+Puffinus mauretanicus,8.98E-04,,,,,,,Puffinus mauretanicus,4.11E-04
+Puffinus puffinus,0.006024237,,,,,,,Puffinus puffinus,0.003829962
+Pyrrhocorax pyrrhocorax,0.004817057,,,,,,,Pyrrhocorax pyrrhocorax,0.004035704
+Pyrrhula pyrrhula,0.090585162,,,,,,,Pyrrhula pyrrhula,0.097474124
+Rallus aquaticus,0.031491655,,,,,,,Rallus aquaticus,0.034817839
+Recurvirostra avosetta,0.038186547,,,,,,,Recurvirostra avosetta,0.033393473
+Regulus ignicapilla,0.006228349,,,,,,,Regulus ignicapilla,0.004605451
+Regulus regulus,0.129547337,,,,,,,Regulus regulus,0.128066344
+Remiz pendulinus,5.25E-05,,,,,TRUE,,,
+Riparia riparia,0.070926205,,,,,,,Riparia riparia,0.074415219
+Rissa tridactyla,0.024639304,,,,,,,Rissa tridactyla,0.01753553
+,,,,,,TRUE,,Saxicola maurus,1.58E-05
+Saxicola rubetra,0.00649078,,,,,,,Saxicola rubetra,0.005555028
+Saxicola rubicola,0.072599928,,,,,,,Saxicola rubicola,0.071297439
+Scolopax rusticola,0.005592685,,,,,,,Scolopax rusticola,0.005729117
+Serinus serinus,1.05E-04,,,,,,,Serinus serinus,3.17E-05
+Sibirionetta formosa,1.75E-05,,,,,TRUE,,,
+Sitta europaea,0.10838961,,,,,,,Sitta europaea,0.11993163
+Somateria mollissima,0.025030034,,,,,,,Somateria mollissima,0.02453075
+Somateria spectabilis,2.97E-04,,,,,,,Somateria spectabilis,1.27E-04
+Spatula clypeata,0.117312246,,,,,,,Spatula clypeata,0.102459406
+,,,,,TRUE,,,Spatula cyanoptera,1.58E-05
+Spatula discors,5.83E-05,,,,,TRUE,,,
+Spatula querquedula,0.006047564,,,,,,,Spatula querquedula,0.005301807
+Spinus spinus,0.071853459,,,,,,,Spinus spinus,0.076061153
+Stercorarius longicaudus,7.17E-04,,,,,,,Stercorarius longicaudus,5.22E-04
+Stercorarius parasiticus,0.006245845,,,,,,,Stercorarius parasiticus,0.004842845
+Stercorarius pomarinus,7.87E-04,,,,,,,Stercorarius pomarinus,3.32E-04
+Stercorarius skua,0.007983718,,,,,,,Stercorarius skua,0.006124774
+Sterna dougallii,0.001329648,,,,,,,Sterna dougallii,9.18E-04
+Sterna hirundo,0.051844595,,,,,,,Sterna hirundo,0.045009971
+Sterna paradisaea,0.008380279,,,,,,,Sterna paradisaea,0.007153483
+Sternula albifrons,0.006228349,,,,,,,Sternula albifrons,0.003972399
+Streptopelia decaocto,0.199167221,,,,,,,Streptopelia decaocto,0.202687304
+Streptopelia orientalis,8.75E-05,,,,,,,Streptopelia orientalis,3.17E-05
+Streptopelia turtur,0.002962548,,,,,,,Streptopelia turtur,0.003291868
+Strix aluco,0.008870149,,,,,,,Strix aluco,0.008166366
+Sturnus vulgaris,0.395908418,,,,,,,Sturnus vulgaris,0.363181717
+Sylvia atricapilla,0.17982318,,,,,,,Sylvia atricapilla,0.194346849
+Sylvia borin,0.019291554,,,,,,,Sylvia borin,0.023090558
+,,,,,TRUE,,,Syrmaticus reevesii,7.91E-05
+Tachybaptus ruficollis,0.110074997,,,,,,,Tachybaptus ruficollis,0.119789194
+Tachymarptis melba,2.92E-05,,,,,,,Tachymarptis melba,3.17E-05
+,,,,,TRUE,,,Tadorna cana,2.37E-04
+,,,,,TRUE,,,Tadorna ferruginea,0.002057418
+Tadorna tadorna,0.111142214,,,,,,,Tadorna tadorna,0.106273542
+Tarsiger cyanurus,1.46E-04,,,,,,,Tarsiger cyanurus,3.17E-05
+,,,,TRUE,,,,Tetrao urogallus,3.17E-05
+Thalassarche melanophris,0.001352975,,,,,,,Thalassarche melanophris,5.70E-04
+Thalasseus elegans,4.72E-04,,,,,,,Thalasseus elegans,1.42E-04
+Thalasseus sandvicensis,0.029794604,,,,,,,Thalasseus sandvicensis,0.022394201
+Thinornis dubius,0.027735983,Charadrius dubius,TRUE,,,,,,
+Tringa erythropus,0.008945963,,,,,,,Tringa erythropus,0.007881493
+Tringa flavipes,2.92E-04,,,,,,,Tringa flavipes,2.06E-04
+Tringa glareola,0.004589617,,,,,,,Tringa glareola,0.003703352
+Tringa melanoleuca,9.91E-05,,,,,,,Tringa melanoleuca,9.50E-05
+Tringa nebularia,0.024738444,,,,,,,Tringa nebularia,0.022647422
+Tringa ochropus,0.025793998,,,,,,,Tringa ochropus,0.026936347
+Tringa stagnatilis,1.17E-05,,,,,TRUE,,,
+Tringa totanus,0.108920303,,,,,,,Tringa totanus,0.10508657
+Troglodytes troglodytes,0.478463207,,,,,,,Troglodytes troglodytes,0.503165258
+Turdus iliacus,0.131314368,,,,,,,Turdus iliacus,0.11434495
+Turdus merula,0.616886525,,,,,,,Turdus merula,0.647991644
+Turdus philomelos,0.236974702,,,,,,,Turdus philomelos,0.254739974
+Turdus pilaris,0.054515553,,,,,,,Turdus pilaris,0.056420726
+Turdus torquatus,0.003481577,,,,,,,Turdus torquatus,0.003086127
+Turdus viscivorus,0.093565205,,,,,,,Turdus viscivorus,0.095574969
+Tyto alba,0.010742153,,,,,,,Tyto alba,0.011569018
+Upupa epops,5.13E-04,,,,,,,Upupa epops,1.58E-04
+Uria aalge,0.030313634,,,,,,,Uria aalge,0.021523755
+Uria lomvia,4.67E-05,,,,,,,Uria lomvia,1.58E-05
+Vanellus gregarius,1.75E-05,,,,,TRUE,,,
+Vanellus leucurus,0.001702882,,,,,,,Vanellus leucurus,0.001044535
+Vanellus vanellus,0.177134726,,,,,,,Vanellus vanellus,0.168866521
+Vireo olivaceus,1.52E-04,,,,,,,Vireo olivaceus,4.75E-05
+Xema sabini,2.92E-04,,,,,,,Xema sabini,7.91E-05
+Zonotrichia albicollis,3.56E-04,,,,,,,Zonotrichia albicollis,1.42E-04
+Zonotrichia leucophrys,5.83E-06,,,,,TRUE,,,
+,,,,,,,,,
+,,,15,11,27,40,,,

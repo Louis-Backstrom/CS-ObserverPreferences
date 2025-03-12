@@ -47,3 +47,45 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# paper files
+Paper/
+
+# analyses outside of Britain (not presented)
+Not Britain/
+
+# provided datasets
+Britain/Data/Provided/
+
+# personal file paths
+Britain/FilePaths.R
+
+# large data (too large for GitHub)
+Britain/Data/ebd_relDec-2024_GBR.txt
+Britain/Data/ebd_sampling_relDec-2024_GBR.txt
+Britain/Data/supp_ebd_relDec-2024_GBR.txt
+Britain/Data/supp_ebd_sampling_relDec-2024_GBR.txt
+Britain/Data/EB_encounter_plots.RData
+Britain/Data/EB_occupancy_plots.RData
+Britain/Data/EB_encounter_models.RData
+Britain/Data/EB_occupancy_models.RData
+Britain/Data/EB_encounter_grids.RData
+Britain/Data/EB_occupancy_grids.RData
+Britain/Data/EB_encounter_diffplots_linear.RData
+Britain/Data/EB_occupancy_diffplots_linear.RData
+Britain/Data/EB_encounter_diffplots_logit.RData
+Britain/Data/EB_occupancy_diffplots_logit.RData
+Britain/Data/EB_encounter_datasets.RData
+Britain/Data/EB_occupancy_datasets.RData
+
+# private data (not shareable)
+Britain/Data/BT_all.RData
+Britain/Data/BT_checklists.RData
+Britain/Data/BT_locations.RData
+Britain/Data/BT_observations.RData
+Britain/Data/BT_zf.RData
+Britain/Data/EB_all.RData
+Britain/Data/EB_checklists.RData
+Britain/Data/EB_locations.RData
+Britain/Data/EB_observations.RData
+Britain/Data/EB_zf.RData
